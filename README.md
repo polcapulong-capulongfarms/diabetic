@@ -18,7 +18,7 @@ Uses Firebase Firestore as primary storage, with automatic fallback to browser l
 
 ## Usage
 
-Open `index.html` directly in a browser or visit the GitHub Pages URL. On first use, set a PIN and configure your glucose/BP thresholds in **Settings**.
+Open the live app at **https://polcapulong-capulongfarms.github.io/diabetic/** or run `index.html` directly in a browser. On first use, set a PIN and configure your glucose/BP thresholds in **Settings**.
 
 ## Architecture
 
