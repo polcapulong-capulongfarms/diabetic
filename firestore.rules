@@ -1,0 +1,15 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Only allow access to this app's fixed UID path
+    match /users/64oGBkwTKJOfCpGUW10eTrLdMgJ2/{document=**} {
+      allow read, write: if true;
+    }
+
+    // Block all other paths
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
