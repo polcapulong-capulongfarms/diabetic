@@ -1,0 +1,2108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Diabetic Records & Analysis</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+html { font-size: 18px; } /* default — overridden by applyFont() */
+
+:root {
+  --bg:#0f1117; --bg2:#161b26; --bg3:#1e2535; --bg4:#252d3d;
+  --border:#2a3348; --border2:#3a4560;
+  --text:#e8edf5; --text2:#9aa5b8; --text3:#5a6580;
+  --accent:#3b82f6; --accent2:#10b981; --danger:#ef4444;
+  --warn:#f59e0b; --purple:#8b5cf6;
+  --card:#1a2035; --card2:#212940;
+  --font:'IBM Plex Sans',sans-serif; --mono:'IBM Plex Mono',monospace;
+  --radius:10px; --radius2:6px; --shadow:0 4px 24px rgba(0,0,0,.4);
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:1rem;min-height:100vh;overflow-x:hidden;}
+/* AUTH */
+#auth-screen{display:flex;align-items:center;justify-content:center;min-height:100vh;
+  background:radial-gradient(ellipse at 30% 20%,rgba(59,130,246,.15) 0%,transparent 60%),
+  radial-gradient(ellipse at 70% 80%,rgba(16,185,129,.1) 0%,transparent 60%),var(--bg);}
+.auth-card{background:var(--card);border:1px solid var(--border2);border-radius:16px;padding:52px 48px;
+  text-align:center;max-width:440px;width:90%;box-shadow:var(--shadow);}
+.auth-card h1{font-size:1.6rem;font-weight:700;margin-bottom:6px;letter-spacing:-.02em;}
+.auth-card p{color:var(--text2);margin-bottom:32px;font-size:.92rem;line-height:1.6;}
+.auth-icon{font-size:3rem;margin-bottom:16px;}
+.btn-google{display:inline-flex;align-items:center;gap:10px;background:#fff;color:#1a1a1a;
+  border:none;border-radius:8px;padding:13px 24px;font-size:.95rem;font-weight:600;
+  cursor:pointer;transition:all .2s;width:100%;justify-content:center;margin-bottom:10px;}
+.btn-google:hover{background:#f0f0f0;transform:translateY(-1px);}
+.btn-google svg{width:20px;height:20px;flex-shrink:0;}
+.btn-local{display:inline-block;color:var(--accent);background:none;border:none;font-size:.83rem;
+  cursor:pointer;text-decoration:underline;font-family:var(--font);padding:4px;}
+/* PIN PAD */
+.pin-dot{width:14px;height:14px;border-radius:50%;border:2px solid var(--border2);display:inline-block;transition:all .15s;}
+.pin-dot.filled{background:var(--accent);border-color:var(--accent);}
+.pin-dot.error{background:var(--danger);border-color:var(--danger);}
+.pin-btn{background:var(--bg3);border:1px solid var(--border);color:var(--text);border-radius:10px;
+  font-size:1.3rem;font-weight:600;font-family:var(--font);padding:16px;cursor:pointer;
+  transition:all .15s;width:100%;}
+.pin-btn:hover{background:var(--bg4);border-color:var(--accent);}
+.pin-btn:active{transform:scale(.93);background:var(--accent);color:#fff;}
+
+/* LAYOUT */
+#app{display:none;flex-direction:column;min-height:100vh;}
+header{background:var(--bg2);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;padding:0 16px;height:52px;gap:6px;position:sticky;top:0;z-index:100;}
+.app-title{font-weight:700;font-size:.9rem;color:var(--text);white-space:nowrap;margin-right:4px;}
+.nav-tabs{display:flex;gap:2px;overflow-x:auto;flex:1;scrollbar-width:none;}
+.nav-tabs::-webkit-scrollbar{display:none;}
+.nav-btn{background:none;border:none;color:var(--text2);padding:7px 11px;border-radius:var(--radius2);
+  cursor:pointer;font-size:.8rem;font-weight:500;white-space:nowrap;transition:all .15s;font-family:var(--font);}
+.nav-btn:hover{background:var(--bg3);color:var(--text);}
+.nav-btn.active{background:var(--accent);color:#fff;}
+.header-right{display:flex;align-items:center;gap:8px;margin-left:auto;flex-shrink:0;}
+.font-ctrl{display:flex;align-items:center;gap:3px;}
+.font-btn{background:var(--bg3);border:1px solid var(--border);color:var(--text2);
+  width:26px;height:26px;border-radius:4px;cursor:pointer;font-size:.75rem;font-weight:700;
+  display:flex;align-items:center;justify-content:center;transition:all .15s;font-family:var(--font);}
+.font-btn:hover{background:var(--bg4);color:var(--text);}
+.font-size-lbl{font-size:.72rem;color:var(--text3);min-width:28px;text-align:center;font-family:var(--mono);}
+.user-avatar{width:28px;height:28px;border-radius:50%;cursor:pointer;border:2px solid var(--border2);}
+.signout-btn{background:none;border:1px solid var(--border);color:var(--text2);padding:4px 10px;
+  border-radius:var(--radius2);cursor:pointer;font-size:.75rem;font-family:var(--font);transition:all .15s;}
+.signout-btn:hover{border-color:var(--danger);color:var(--danger);}
+/* DASHBOARDS */
+main{flex:1;overflow:hidden;}
+.dashboard{display:none;height:calc(100vh - 52px);overflow-y:auto;padding:18px 20px;}
+.dashboard.active{display:block;}
+.dashboard::-webkit-scrollbar{width:5px;}
+.dashboard::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px;}
+/* COMPONENTS */
+.page-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px;gap:8px;flex-wrap:wrap;}
+.page-title{font-size:1.15rem;font-weight:700;letter-spacing:-.01em;}
+.toolbar{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+.btn{display:inline-flex;align-items:center;gap:5px;padding:7px 13px;border-radius:var(--radius2);
+  border:none;cursor:pointer;font-size:.8rem;font-weight:600;font-family:var(--font);
+  transition:all .15s;white-space:nowrap;}
+.btn:hover{opacity:.85;transform:translateY(-1px);}
+.btn:active{transform:translateY(0);}
+.btn-primary{background:var(--accent);color:#fff;}
+.btn-success{background:var(--accent2);color:#fff;}
+.btn-danger{background:var(--danger);color:#fff;}
+.btn-warn{background:var(--warn);color:#000;}
+.btn-ghost{background:var(--bg3);color:var(--text2);border:1px solid var(--border);}
+.btn-ghost:hover{color:var(--text);}
+.btn-sm{padding:5px 9px;font-size:.75rem;}
+.search-box{display:flex;align-items:center;background:var(--bg3);border:1px solid var(--border);
+  border-radius:var(--radius2);padding:0 10px;gap:5px;}
+.search-box input{background:none;border:none;color:var(--text);font-size:.83rem;padding:6px 0;
+  outline:none;font-family:var(--font);width:180px;}
+.search-box input::placeholder{color:var(--text3);}
+/* CARDS */
+.cards-row{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:18px;}
+.stat-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);
+  padding:16px 18px;flex:1;min-width:150px;}
+.stat-card .label{font-size:.72rem;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:7px;}
+.stat-card .value{font-size:1.5rem;font-weight:700;font-family:var(--mono);letter-spacing:-.02em;}
+.stat-card .sub{font-size:.72rem;color:var(--text3);margin-top:3px;}
+.stat-card.accent .value{color:var(--accent);}
+.stat-card.success .value{color:var(--accent2);}
+.stat-card.danger .value{color:var(--danger);}
+.stat-card.warn .value{color:var(--warn);}
+/* TABLE */
+.table-wrap{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);overflow:auto;}
+.table-wrap table{width:100%;border-collapse:collapse;font-size:.8rem;}
+.table-wrap th{background:var(--bg3);color:var(--text2);padding:9px 11px;text-align:left;
+  font-weight:600;font-size:.72rem;text-transform:uppercase;letter-spacing:.05em;
+  border-bottom:1px solid var(--border);white-space:nowrap;cursor:pointer;user-select:none;position:sticky;top:0;}
+.table-wrap th:hover{color:var(--text);}
+.table-wrap td{padding:8px 11px;border-bottom:1px solid var(--border);color:var(--text);vertical-align:middle;}
+.table-wrap tr:last-child td{border-bottom:none;}
+.table-wrap tr:hover td{background:var(--bg3);}
+.table-wrap tr.selected td{background:rgba(59,130,246,.1);}
+.table-wrap tr{cursor:pointer;}
+.badge{display:inline-block;padding:2px 7px;border-radius:20px;font-size:.7rem;font-weight:600;}
+.badge-high{background:rgba(239,68,68,.15);color:#f87171;}
+.badge-low{background:rgba(59,130,246,.15);color:#60a5fa;}
+.badge-norm{background:rgba(16,185,129,.15);color:#34d399;}
+.badge-warn{background:rgba(245,158,11,.15);color:#fbbf24;}
+/* MODAL */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.72);
+  z-index:1000;align-items:center;justify-content:center;padding:16px;}
+.modal-overlay.open{display:flex;}
+.modal{background:var(--bg2);border:1px solid var(--border2);border-radius:14px;
+  width:100%;max-width:820px;max-height:92vh;display:flex;flex-direction:column;box-shadow:var(--shadow);}
+.modal-header{padding:18px 22px 14px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;}
+.modal-title{font-size:.95rem;font-weight:700;}
+.modal-close{background:none;border:none;color:var(--text2);cursor:pointer;font-size:1.1rem;
+  width:30px;height:30px;display:flex;align-items:center;justify-content:center;
+  border-radius:4px;transition:all .15s;}
+.modal-close:hover{background:var(--bg3);color:var(--text);}
+.modal-body{padding:18px 22px;overflow-y:auto;flex:1;}
+.modal-body::-webkit-scrollbar{width:5px;}
+.modal-body::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px;}
+.modal-footer{padding:14px 22px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end;}
+/* FORMS */
+.form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;}
+.form-group{display:flex;flex-direction:column;gap:4px;}
+.form-group label{font-size:.74rem;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.04em;}
+.form-group input,.form-group select,.form-group textarea{
+  background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius2);
+  color:var(--text);padding:8px 10px;font-size:.85rem;font-family:var(--font);outline:none;transition:border-color .15s;}
+.form-group input:focus,.form-group select:focus,.form-group textarea:focus{border-color:var(--accent);}
+.form-group textarea{resize:vertical;min-height:68px;}
+.form-group select option{background:var(--bg3);}
+.form-section-title{grid-column:1/-1;font-size:.75rem;font-weight:700;color:var(--accent);
+  text-transform:uppercase;letter-spacing:.06em;padding-top:8px;border-top:1px solid var(--border);}
+.radio-group,.check-group{display:flex;flex-wrap:wrap;gap:7px;}
+.radio-group label,.check-group label{display:flex;align-items:center;gap:5px;
+  background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius2);
+  padding:5px 11px;cursor:pointer;font-size:.8rem;transition:all .15s;}
+.radio-group label:hover,.check-group label:hover{border-color:var(--border2);}
+.radio-group input[type=radio],.check-group input[type=checkbox]{accent-color:var(--accent);}
+.radio-group label:has(input:checked),.check-group label:has(input:checked){
+  border-color:var(--accent);background:rgba(59,130,246,.08);}
+/* TABS */
+.tabs{display:flex;gap:1px;border-bottom:1px solid var(--border);margin-bottom:14px;flex-wrap:wrap;}
+.tab-btn{background:none;border:none;color:var(--text2);padding:7px 14px;cursor:pointer;
+  font-size:.82rem;font-weight:500;font-family:var(--font);border-bottom:2px solid transparent;
+  margin-bottom:-1px;transition:all .15s;}
+.tab-btn:hover{color:var(--text);}
+.tab-btn.active{color:var(--accent);border-bottom-color:var(--accent);}
+.tab-panel{display:none;}.tab-panel.active{display:block;}
+/* CHARTS */
+.chart-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:14px;}
+.chart-card h3{font-size:.78rem;font-weight:600;color:var(--text2);margin-bottom:10px;text-transform:uppercase;letter-spacing:.05em;}
+.chart-wrap{position:relative;height:270px;}
+/* SUMMARY */
+.summary-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;margin-bottom:18px;}
+.summary-block{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px;}
+.summary-block h3{font-size:.76rem;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px;}
+.kv-row{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--border);}
+.kv-row:last-child{border-bottom:none;}
+.kv-row .k{font-size:.78rem;color:var(--text2);}
+.kv-row .v{font-size:.8rem;font-weight:600;font-family:var(--mono);}
+/* SPLIT PANE (Tests) */
+.split-pane{display:grid;grid-template-columns:340px 1fr;gap:12px;height:calc(100vh - 200px);}
+.split-pane>div{overflow-y:auto;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);}
+.split-pane>div::-webkit-scrollbar{width:4px;}
+.split-pane>div::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px;}
+.session-item{padding:11px 13px;border-bottom:1px solid var(--border);cursor:pointer;transition:all .15s;}
+.session-item:hover{background:var(--bg3);}
+.session-item.selected{background:rgba(59,130,246,.1);border-left:3px solid var(--accent);}
+.session-item .s-date{font-size:.83rem;font-weight:600;}
+.session-item .s-loc{font-size:.73rem;color:var(--text2);margin-top:1px;}
+.session-item .s-count{font-size:.7rem;color:var(--text3);}
+/* SETTINGS */
+.settings-section{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:18px;margin-bottom:14px;}
+.settings-section h3{font-size:.78rem;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--border);}
+.settings-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;}
+.cfg-input{width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius2);
+  color:var(--text);padding:8px 10px;font-size:.82rem;font-family:var(--mono);outline:none;}
+.cfg-input:focus{border-color:var(--accent);}
+/* PAGINATION */
+.pagination{display:flex;align-items:center;gap:5px;margin-top:10px;justify-content:flex-end;flex-wrap:wrap;}
+.page-btn{background:var(--bg3);border:1px solid var(--border);color:var(--text2);
+  width:28px;height:28px;border-radius:4px;cursor:pointer;font-size:.78rem;
+  display:flex;align-items:center;justify-content:center;transition:all .15s;}
+.page-btn:hover{border-color:var(--border2);color:var(--text);}
+.page-btn.active{background:var(--accent);border-color:var(--accent);color:#fff;}
+.page-info{font-size:.74rem;color:var(--text3);font-family:var(--mono);margin-left:4px;}
+/* TOAST */
+#toast-container{position:fixed;bottom:18px;right:18px;z-index:9999;display:flex;flex-direction:column;gap:7px;}
+.toast{background:var(--card2);border:1px solid var(--border2);border-radius:var(--radius2);
+  padding:10px 16px;font-size:.82rem;min-width:220px;box-shadow:var(--shadow);
+  animation:slideIn .2s ease;display:flex;align-items:center;gap:7px;}
+.toast.success{border-left:3px solid var(--accent2);}
+.toast.error{border-left:3px solid var(--danger);}
+.toast.info{border-left:3px solid var(--accent);}
+@keyframes slideIn{from{transform:translateX(110%);opacity:0;}to{transform:translateX(0);opacity:1;}}
+/* LOADING */
+.loading{display:flex;align-items:center;justify-content:center;padding:40px;color:var(--text3);}
+.spinner{width:24px;height:24px;border:3px solid var(--border);border-top-color:var(--accent);
+  border-radius:50%;animation:spin .7s linear infinite;margin-right:10px;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.empty{text-align:center;padding:40px 20px;color:var(--text3);}
+.empty .empty-icon{font-size:2.2rem;margin-bottom:8px;}
+.empty p{font-size:.85rem;}
+#config-banner{background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.25);
+  border-radius:var(--radius2);padding:10px 14px;margin-bottom:14px;font-size:.8rem;color:var(--warn);display:flex;gap:8px;}
+@media(max-width:700px){
+  .split-pane{grid-template-columns:1fr;height:auto;}
+  .app-title{display:none;}
+  .nav-btn{padding:5px 7px;font-size:.74rem;}
+  .modal{max-width:100%;margin:0;}
+}
+</style>
+</head>
+<body>
+
+<!-- AUTH SCREEN -->
+<div id="auth-screen" style="display:none">
+  <div class="auth-card">
+    <div class="auth-icon">🩺</div>
+    <h1>Diabetic Records</h1>
+    <p>Enter your PIN to access your health records.</p>
+    <div id="pin-dots" style="display:flex;justify-content:center;gap:12px;margin:20px 0">
+      <span class="pin-dot" id="pd0"></span>
+      <span class="pin-dot" id="pd1"></span>
+      <span class="pin-dot" id="pd2"></span>
+      <span class="pin-dot" id="pd3"></span>
+      <span class="pin-dot" id="pd4"></span>
+      <span class="pin-dot" id="pd5"></span>
+    </div>
+    <div id="pin-pad" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;max-width:240px;margin:0 auto">
+      <button class="pin-btn" onclick="pinPress('1')">1</button>
+      <button class="pin-btn" onclick="pinPress('2')">2</button>
+      <button class="pin-btn" onclick="pinPress('3')">3</button>
+      <button class="pin-btn" onclick="pinPress('4')">4</button>
+      <button class="pin-btn" onclick="pinPress('5')">5</button>
+      <button class="pin-btn" onclick="pinPress('6')">6</button>
+      <button class="pin-btn" onclick="pinPress('7')">7</button>
+      <button class="pin-btn" onclick="pinPress('8')">8</button>
+      <button class="pin-btn" onclick="pinPress('9')">9</button>
+      <button class="pin-btn" onclick="pinClear()" style="font-size:.8rem">CLR</button>
+      <button class="pin-btn" onclick="pinPress('0')">0</button>
+      <button class="pin-btn" onclick="pinDel()">&#9003;</button>
+    </div>
+    <p id="pin-error" style="color:var(--danger);font-size:.82rem;margin-top:16px;min-height:20px;text-align:center;"></p>
+    <p style="color:var(--text3);font-size:.72rem;margin-top:8px" id="pin-hint">First time? Any PIN you enter becomes your PIN.</p>
+    <p style="margin-top:10px"><a href="#" onclick="resetPin();return false;" style="color:var(--text3);font-size:.72rem;text-decoration:underline">Forgot PIN? Reset it</a></p>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="app">
+  <header>
+    <span class="app-title">🩺 Diabetic Records</span>
+    <div class="font-ctrl" style="flex-shrink:0">
+      <button class="font-btn" onclick="changeFont(-1)">A−</button>
+      <span class="font-size-lbl" id="font-lbl">18</span>
+      <button class="font-btn" onclick="changeFont(1)">A+</button>
+    </div>
+    <nav class="nav-tabs">
+      <button class="nav-btn active"  data-dash="summary">🏠 Summary</button>
+      <button class="nav-btn" data-dash="readings">📋 Readings</button>
+      <button class="nav-btn" data-dash="charts">📈 Charts</button>
+      <button class="nav-btn" data-dash="diet">🍽 Diet</button>
+      <button class="nav-btn" data-dash="bp">❤️ BP</button>
+      <button class="nav-btn" data-dash="tests">🧪 Tests</button>
+      <button class="nav-btn" data-dash="wife">🏥 Wife UC</button>
+      <button class="nav-btn" data-dash="settings">⚙️ Settings</button>
+    </nav>
+    <div class="header-right">
+      <button class="signout-btn" onclick="doSignOut()" style="display:none">🔒 Lock</button>
+    </div>
+  </header>
+  <main>
+
+    <!-- SUMMARY -->
+    <div class="dashboard active" id="dash-summary">
+      <div id="config-banner" style="display:none">⚠️&nbsp;<span>Firebase not configured — running in local browser mode. Go to ⚙️ Settings to connect Firebase.</span></div>
+      <div class="page-header">
+        <span class="page-title">🏠 Health Summary</span>
+        <button class="btn btn-ghost btn-sm" onclick="renderSummary()">🔄 Refresh</button>
+      </div>
+      <div class="cards-row" id="sum-cards"><div class="loading"><div class="spinner"></div>Loading…</div></div>
+      <div class="summary-grid" id="sum-grid"></div>
+      <div class="chart-card" id="sum-trend-wrap" style="display:none">
+        <h3>📈 Last 30 Days — Glucose Trend</h3>
+        <div class="chart-wrap"><canvas id="sum-trend-chart"></canvas></div>
+      </div>
+    </div>
+
+    <!-- READINGS -->
+    <div class="dashboard" id="dash-readings">
+      <div class="page-header">
+        <span class="page-title">📋 Daily Readings</span>
+        <div class="toolbar">
+          <div class="search-box">🔍<input id="read-search" placeholder="Search…" oninput="filterReadings()"/></div>
+          <button class="btn btn-success btn-sm" onclick="openReadingModal()">➕ Add</button>
+          <button class="btn btn-primary btn-sm" onclick="editSelectedReading()">✏️ Edit</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteReading()">🗑 Delete</button>
+          <button class="btn btn-ghost btn-sm" onclick="exportReadingsCSV()">📤 Export CSV</button>
+          <button class="btn btn-ghost btn-sm" onclick="importReadingsCSV()">📥 Import CSV</button>
+        </div>
+      </div>
+      <div class="table-wrap" style="max-height:calc(100vh - 220px)">
+        <table>
+          <thead><tr>
+            <th onclick="sortBy('date')">Date ↕</th><th>Day</th><th>Wt(kg)</th>
+            <th onclick="sortBy('bpSys')">BP ↕</th><th>Pulse</th>
+            <th onclick="sortBy('glucoseMmol')">mmol/L ↕</th><th>mg/dL</th>
+            <th>Meal</th><th>Time</th><th>Meal Description</th>
+            <th>Meds-Hypert</th><th>Meds-Diab</th><th>Remarks</th>
+          </tr></thead>
+          <tbody id="readings-tbody"></tbody>
+        </table>
+      </div>
+      <div class="pagination" id="read-pagination"></div>
+    </div>
+
+    <!-- CHARTS -->
+    <div class="dashboard" id="dash-charts">
+      <div class="page-header">
+        <span class="page-title">📈 Chart Analysis</span>
+        <div class="toolbar">
+          <select id="chart-year" class="cfg-input" style="width:110px" onchange="renderCharts()">
+            <option value="all">All Years</option>
+          </select>
+          <button class="btn btn-ghost btn-sm" onclick="renderCharts()">🔄 Refresh</button>
+        </div>
+      </div>
+      <div class="tabs" id="charts-tabs">
+        <button class="tab-btn active" onclick="switchTab('charts','trend',this)">Glucose Trend</button>
+        <button class="tab-btn" onclick="switchTab('charts','dow',this)">By Day</button>
+        <button class="tab-btn" onclick="switchTab('charts','month',this)">By Month</button>
+        <button class="tab-btn" onclick="switchTab('charts','year',this)">By Year</button>
+        <button class="tab-btn" onclick="switchTab('charts','bpch',this)">Blood Pressure</button>
+        <button class="tab-btn" onclick="switchTab('charts','wtch',this)">Weight</button>
+      </div>
+      <div id="charts-trend" class="tab-panel active"><div class="chart-card"><div class="chart-wrap" style="height:310px"><canvas id="c-trend"></canvas></div></div></div>
+      <div id="charts-dow" class="tab-panel"><div class="chart-card"><div class="chart-wrap"><canvas id="c-dow"></canvas></div></div></div>
+      <div id="charts-month" class="tab-panel"><div class="chart-card"><div class="chart-wrap"><canvas id="c-month"></canvas></div></div></div>
+      <div id="charts-year" class="tab-panel"><div class="chart-card"><div class="chart-wrap"><canvas id="c-year"></canvas></div></div></div>
+      <div id="charts-bpch" class="tab-panel"><div class="chart-card"><div class="chart-wrap" style="height:310px"><canvas id="c-bp"></canvas></div></div></div>
+      <div id="charts-wtch" class="tab-panel"><div class="chart-card"><div class="chart-wrap" style="height:310px"><canvas id="c-wt"></canvas></div></div></div>
+    </div>
+
+    <!-- DIET -->
+    <div class="dashboard" id="dash-diet">
+      <div class="page-header">
+        <span class="page-title">🍽 Diet Analysis</span>
+        <button class="btn btn-ghost btn-sm" onclick="renderDiet()">🔄 Refresh</button>
+      </div>
+      <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab('diet','dcat',this)">Meal Categories</button>
+        <button class="tab-btn" onclick="switchTab('diet','drank',this)">Rankings</button>
+        <button class="tab-btn" onclick="switchTab('diet','drec',this)">Recommendations</button>
+      </div>
+      <div id="diet-dcat" class="tab-panel active">
+        <div class="table-wrap"><table>
+          <thead><tr><th>Category</th><th># Meals</th><th>Avg mmol/L</th><th>Median</th><th>Min</th><th>Max</th></tr></thead>
+          <tbody id="diet-cat-tbody"></tbody>
+        </table></div>
+      </div>
+      <div id="diet-drank" class="tab-panel">
+        <div class="tabs" style="margin-bottom:10px">
+          <button class="tab-btn active" onclick="switchTab('dietr','best',this)">🏆 Top 15 Best</button>
+          <button class="tab-btn" onclick="switchTab('dietr','worst',this)">⚠️ Top 10 Worst</button>
+        </div>
+        <div id="dietr-best" class="tab-panel active">
+          <div class="table-wrap"><table><thead><tr><th>Rank</th><th>Meal</th><th>Times</th><th>Avg mmol/L</th><th>Min</th><th>Max</th></tr></thead><tbody id="diet-best-tbody"></tbody></table></div>
+        </div>
+        <div id="dietr-worst" class="tab-panel">
+          <div class="table-wrap"><table><thead><tr><th>Rank</th><th>Meal</th><th>Times</th><th>Avg mmol/L</th><th>Min</th><th>Max</th></tr></thead><tbody id="diet-worst-tbody"></tbody></table></div>
+        </div>
+      </div>
+      <div id="diet-drec" class="tab-panel"></div>
+    </div>
+
+    <!-- BP ANALYSIS -->
+    <div class="dashboard" id="dash-bp">
+      <div class="page-header">
+        <span class="page-title">❤️ Hypertension Analysis</span>
+        <div class="toolbar">
+          <select id="bp-year" class="cfg-input" style="width:110px" onchange="renderBP()">
+            <option value="all">All Years</option>
+          </select>
+          <button class="btn btn-ghost btn-sm" onclick="renderBP()">🔄 Refresh</button>
+        </div>
+      </div>
+      <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab('bp','bpov',this)">Overview</button>
+        <button class="tab-btn" onclick="switchTab('bp','bptrend',this)">BP Trend</button>
+        <button class="tab-btn" onclick="switchTab('bp','bpdist',this)">Distribution</button>
+        <button class="tab-btn" onclick="switchTab('bp','bpyear',this)">Yearly</button>
+        <button class="tab-btn" onclick="switchTab('bp','bpstats',this)">Statistics</button>
+      </div>
+      <div id="bp-bpov" class="tab-panel active"><div id="bp-overview-content"></div></div>
+      <div id="bp-bptrend" class="tab-panel"><div class="chart-card"><div class="chart-wrap" style="height:320px"><canvas id="c-bptrend"></canvas></div></div></div>
+      <div id="bp-bpdist" class="tab-panel">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div class="chart-card"><h3>Systolic Distribution</h3><div class="chart-wrap"><canvas id="c-sysdist"></canvas></div></div>
+          <div class="chart-card"><h3>Diastolic Distribution</h3><div class="chart-wrap"><canvas id="c-diadist"></canvas></div></div>
+        </div>
+      </div>
+      <div id="bp-bpyear" class="tab-panel"><div class="chart-card"><div class="chart-wrap"><canvas id="c-bpyear"></canvas></div></div></div>
+      <div id="bp-bpstats" class="tab-panel"><div id="bp-stats-content"></div></div>
+    </div>
+
+    <!-- TEST RECORDS -->
+    <div class="dashboard" id="dash-tests">
+      <div class="page-header">
+        <span class="page-title">🧪 Lab Test Records</span>
+        <div class="toolbar">
+          <div class="search-box">🔍<input id="test-search" placeholder="Search sessions…" oninput="renderTestSessions()"/></div>
+          <button class="btn btn-success btn-sm" onclick="openTestModal()">➕ Add</button>
+          <button class="btn btn-primary btn-sm" onclick="editSelectedTest()">✏️ Edit</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteTest()">🗑 Delete</button>
+          <button class="btn btn-ghost btn-sm" onclick="exportTestsCSV()">📤 Export CSV</button>
+          <button class="btn btn-ghost btn-sm" onclick="importTestsCSV()">📥 Import CSV</button>
+        </div>
+      </div>
+      <div class="split-pane">
+        <div id="test-sessions-list"></div>
+        <div id="test-results-pane" style="padding:14px">
+          <div class="empty"><div class="empty-icon">🔬</div><p>Select a test session to view results</p></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- WIFE UC -->
+    <div class="dashboard" id="dash-wife">
+      <div class="page-title" style="margin-bottom:14px">🏥 Wife's Ulcerative Colitis Records</div>
+      <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab('wife','wsum',this)">📊 Treatment Summary</button>
+        <button class="tab-btn" onclick="switchTab('wife','wvis',this)">📋 Visit Records</button>
+      </div>
+      <div id="wife-wsum" class="tab-panel active">
+        <div class="toolbar" style="margin-bottom:10px">
+          <button class="btn btn-success btn-sm" onclick="openWifeSumModal()">➕ Add Period</button>
+          <button class="btn btn-primary btn-sm" onclick="editSelectedWifeSum()">✏️ Edit</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteWifeSum()">🗑 Delete</button>
+        </div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>#</th><th>Period</th><th>Doctor</th><th>Clinic</th><th>Medications</th><th>Steroids</th><th>Notes</th></tr></thead>
+          <tbody id="wife-sum-tbody"></tbody>
+        </table></div>
+      </div>
+      <div id="wife-wvis" class="tab-panel">
+        <div class="toolbar" style="margin-bottom:10px">
+          <div class="search-box">🔍<input id="wife-search" placeholder="Search visits…" oninput="renderWifeVisits()"/></div>
+          <button class="btn btn-success btn-sm" onclick="openWifeVisitModal()">➕ Add Visit</button>
+          <button class="btn btn-primary btn-sm" onclick="editSelectedWifeVisit()">✏️ Edit</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteWifeVisit()">🗑 Delete</button>
+          <button class="btn btn-ghost btn-sm" onclick="exportWifeCSV()">📤 Export CSV</button>
+          <button class="btn btn-ghost btn-sm" onclick="importWifeCSV()">📥 Import CSV</button>
+        </div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Date</th><th>Hospital/Clinic</th><th>Description</th><th>Doctor</th><th>Tests</th><th>Medications</th><th>Remarks</th></tr></thead>
+          <tbody id="wife-vis-tbody"></tbody>
+        </table></div>
+      </div>
+    </div>
+
+    <!-- SETTINGS -->
+    <div class="dashboard" id="dash-settings">
+      <div class="page-title" style="margin-bottom:14px">⚙️ Settings &amp; Configuration</div>
+      <div class="settings-section">
+        <h3>🔥 Firebase Connection</h3>
+        <p style="font-size:.8rem;color:var(--text2);margin-bottom:12px">
+          Firebase is hardcoded and active. Connection credentials are embedded in the app and not displayed here for security.
+        </p>
+        <div class="kv-row"><span class="k">Project</span><span class="v" style="color:var(--accent2)">diabetic-records ✅</span></div>
+        <div class="kv-row"><span class="k">Storage</span><span class="v" id="info-storage">Firebase Firestore</span></div>
+        <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-ghost btn-sm" onclick="testFirebaseConnection()">🔌 Test Connection</button>
+        </div>
+        <div id="firebase-status" style="margin-top:8px;font-size:.8rem;"></div>
+        <!-- Hidden inputs kept for internal use only — not visible to user -->
+        <div style="display:none">
+          <input id="cfg-apiKey"/><input id="cfg-authDomain"/><input id="cfg-projectId"/>
+          <input id="cfg-storageBucket"/><input id="cfg-messagingSenderId"/><input id="cfg-appId"/>
+        </div>
+      </div>
+      <div class="settings-section">
+        <h3>👤 Personal Preferences</h3>
+        <div class="settings-grid">
+          <div class="form-group"><label>Your Name</label><input class="cfg-input" id="pref-name" placeholder="Your name"/></div>
+          <div class="form-group"><label>Wife's Name</label><input class="cfg-input" id="pref-wifename" placeholder="Wife's name"/></div>
+          <div class="form-group"><label>Glucose High (mmol/L)</label><input class="cfg-input" id="pref-ghigh" type="number" step="0.1" value="7.8"/></div>
+          <div class="form-group"><label>Glucose Low (mmol/L)</label><input class="cfg-input" id="pref-glow" type="number" step="0.1" value="4.0"/></div>
+          <div class="form-group"><label>BP High Systolic</label><input class="cfg-input" id="pref-bpsys" type="number" value="140"/></div>
+          <div class="form-group"><label>BP High Diastolic</label><input class="cfg-input" id="pref-bpdia" type="number" value="90"/></div>
+        </div>
+        <button class="btn btn-success" style="margin-top:10px" onclick="savePrefs()">💾 Save Preferences</button>
+      </div>
+      <div class="settings-section">
+        <h3>💾 Database Backup &amp; Restore</h3>
+        <p style="font-size:.8rem;color:var(--text2);margin-bottom:12px">
+          <strong>Backup</strong> exports ALL your data into a <code style="background:var(--bg3);padding:1px 5px;border-radius:3px">.json</code> file — same format as the Python app backup.
+          <strong>Restore</strong> re-imports that file, skipping duplicates automatically.
+        </p>
+        <div class="toolbar" style="flex-wrap:wrap;gap:8px">
+          <button class="btn btn-success" onclick="backupAllData()">💾 Backup All Data (JSON)</button>
+          <button class="btn btn-warn" onclick="restoreAllData()">🔄 Restore from Backup (JSON)</button>
+        </div>
+        <div id="backup-status" style="margin-top:8px;font-size:.8rem;"></div>
+      </div>
+
+      <div class="settings-section">
+        <h3>⚙️ Save &amp; Restore Settings</h3>
+        <p style="font-size:.8rem;color:var(--text2);margin-bottom:12px">
+          Save your Firebase config and preferences to a local file — handy when setting up on a new browser or device.
+        </p>
+        <div class="toolbar" style="gap:8px">
+          <button class="btn btn-primary" onclick="saveSettingsFile()">💾 Save Settings to File</button>
+          <button class="btn btn-ghost" onclick="restoreSettingsFile()">📂 Load Settings from File</button>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <h3>🔒 Security PIN</h3>
+        <p style="font-size:.8rem;color:var(--text2);margin-bottom:12px">The PIN protects access to this app. Change it anytime using the button below.</p>
+        <button class="btn btn-primary" onclick="openChangePinModal()">🔒 Change Admin PIN</button>
+      </div>
+      <div class="settings-section">
+        <h3>📊 Export All Records to Excel</h3>
+        <p style="font-size:.8rem;color:var(--text2);margin-bottom:12px">Exports all data into a single formatted .xlsx file with separate sheets — compatible with the Python app format.</p>
+        <button class="btn btn-success" onclick="exportAllExcel()">📊 Export All to Excel (.xlsx)</button>
+        <div id="excel-status" style="margin-top:8px;font-size:.8rem;"></div>
+      </div>
+      <div class="settings-section">
+        <h3>📤 Export Individual CSV</h3>
+        <div class="toolbar">
+          <button class="btn btn-primary btn-sm" onclick="exportReadingsCSV()">📤 Readings CSV</button>
+          <button class="btn btn-ghost btn-sm" onclick="exportTestsCSV()">📤 Test Records CSV</button>
+          <button class="btn btn-ghost btn-sm" onclick="exportWifeCSV()">📤 Wife Records CSV</button>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <h3>ℹ️ App Info</h3>
+        <div class="kv-row"><span class="k">Version</span><span class="v">2.0 — Web Edition</span></div>
+        <div class="kv-row"><span class="k">Storage</span><span class="v" id="info-storage">Local Browser</span></div>
+        <div class="kv-row"><span class="k">Signed in as</span><span class="v" id="info-user">—</span></div>
+        <div class="kv-row"><span class="k">Auth Session</span><span class="v" id="info-session">—</span></div>
+        <div class="kv-row"><span class="k">Total Readings</span><span class="v" id="info-count">—</span></div>
+      </div>
+    </div>
+
+  </main>
+</div><!-- end #app -->
+
+<!-- READING MODAL -->
+<div class="modal-overlay" id="modal-reading">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="modal-reading-title">Add New Reading</span>
+      <button class="modal-close" onclick="closeModal('modal-reading')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group"><label>Date *</label><input type="date" id="r-date"/></div>
+        <div class="form-group"><label>Weight (kg)</label><input type="number" step="0.1" id="r-weight" placeholder="72.5"/></div>
+        <div class="form-group"><label>BP Systolic</label><input type="number" id="r-bps" placeholder="125"/></div>
+        <div class="form-group"><label>BP Diastolic</label><input type="number" id="r-bpd" placeholder="80"/></div>
+        <div class="form-group"><label>Pulse (bpm)</label><input type="number" id="r-pulse" placeholder="72"/></div>
+        <div class="form-group"><label>Glucose mg/dL *</label><input type="number" step="0.1" id="r-gmg" placeholder="108" oninput="calcMmol()"/></div>
+        <div class="form-group"><label>= mmol/L (auto)</label><input type="text" id="r-gml" readonly style="color:var(--accent2);font-weight:600"/></div>
+        <div class="form-group"><label>Clock (24h HH:MM)</label><input type="time" id="r-time" onchange="autoMeal()"/></div>
+      </div>
+      <div style="margin-top:12px;display:flex;flex-direction:column;gap:10px">
+        <div class="form-group">
+          <label>Time of Reading</label>
+          <div class="radio-group">
+            <label><input type="radio" name="r-tor" value="Morning" checked onchange="onTorChange()"/><span>Morning</span></label>
+            <label><input type="radio" name="r-tor" value="Noon" onchange="onTorChange()"/><span>Noon</span></label>
+            <label><input type="radio" name="r-tor" value="Evening" onchange="onTorChange()"/><span>Evening</span></label>
+            <label><input type="radio" name="r-tor" value="Others" onchange="onTorChange()"/><span>Others</span></label>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Meal Taken</label>
+          <div class="radio-group">
+            <label><input type="radio" name="r-meal" value="Breakfast" checked/><span>Breakfast</span></label>
+            <label><input type="radio" name="r-meal" value="Lunch"/><span>Lunch</span></label>
+            <label><input type="radio" name="r-meal" value="Dinner"/><span>Dinner</span></label>
+            <label><input type="radio" name="r-meal" value="Others"/><span>Others</span></label>
+          </div>
+        </div>
+        <div class="form-group"><label>Meal Description</label><textarea id="r-dinn" placeholder="Describe what you ate…"></textarea></div>
+        <div class="form-grid">
+          <div class="form-group"><label>Stress Signs</label><input id="r-stress" placeholder="e.g. Headache"/></div>
+          <div class="form-group"><label>Exercise</label><input id="r-ex" placeholder="e.g. 30 min walk"/></div>
+          <div class="form-group" style="grid-column:1/-1"><label>Remarks</label><textarea id="r-rem" rows="2"></textarea></div>
+        </div>
+        <div class="form-group">
+          <label>Medications — Hypertension</label>
+          <div class="check-group" id="r-medh-group">
+            <label><input type="checkbox" value="Hypertension (amlodipine)"/><span>Hypertension (amlodipine)</span></label>
+            <label><input type="checkbox" value="Anti-Cholesterol (statin)"/><span>Anti-Cholesterol (statin)</span></label>
+            <label><input type="checkbox" value="Herbal"/><span>Herbal</span></label>
+            <label><input type="checkbox" value="Others"/><span>Others</span></label>
+            <label><input type="checkbox" value="No medication"/><span>No medication</span></label>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Medications — Diabetes</label>
+          <div class="check-group" id="r-medd-group">
+            <label><input type="checkbox" value="Diabetes (Metformin)"/><span>Diabetes (Metformin)</span></label>
+            <label><input type="checkbox" value="Actos or Janumet"/><span>Actos or Janumet</span></label>
+            <label><input type="checkbox" value="Herbal"/><span>Herbal</span></label>
+            <label><input type="checkbox" value="Others"/><span>Others</span></label>
+            <label><input type="checkbox" value="No medication"/><span>No medication</span></label>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-reading')">Cancel</button>
+      <button class="btn btn-success" onclick="saveReading()">💾 Save Reading</button>
+    </div>
+  </div>
+</div>
+
+<!-- TEST SESSION MODAL -->
+<div class="modal-overlay" id="modal-test">
+  <div class="modal" style="max-width:920px">
+    <div class="modal-header">
+      <span class="modal-title" id="modal-test-title">Add Test Session</span>
+      <button class="modal-close" onclick="closeModal('modal-test')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid" style="margin-bottom:14px">
+        <div class="form-group"><label>Test Date *</label><input type="date" id="t-date"/></div>
+        <div class="form-group"><label>Location / Lab</label><input id="t-loc" placeholder="e.g. NMC Hospital"/></div>
+        <div class="form-group"><label>Notes</label><input id="t-notes" placeholder="Optional notes"/></div>
+      </div>
+      <div id="test-form-fields"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-test')">Cancel</button>
+      <button class="btn btn-success" onclick="saveTest()">💾 Save Session</button>
+    </div>
+  </div>
+</div>
+
+<!-- WIFE SUMMARY MODAL -->
+<div class="modal-overlay" id="modal-wifesum">
+  <div class="modal" style="max-width:640px">
+    <div class="modal-header">
+      <span class="modal-title" id="modal-wifesum-title">Treatment Period</span>
+      <button class="modal-close" onclick="closeModal('modal-wifesum')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group"><label>Period #</label><input type="number" id="ws-num"/></div>
+        <div class="form-group"><label>Period (e.g. Aug.2016 – Apr.2017)</label><input id="ws-period"/></div>
+        <div class="form-group"><label>Doctor</label><input id="ws-doctor"/></div>
+        <div class="form-group"><label>Clinic / Hospital</label><input id="ws-clinic"/></div>
+        <div class="form-group" style="grid-column:1/-1"><label>Medications</label><textarea id="ws-meds"></textarea></div>
+        <div class="form-group"><label>Steroids</label><input id="ws-ster"/></div>
+        <div class="form-group" style="grid-column:1/-1"><label>Notes</label><textarea id="ws-notes"></textarea></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-wifesum')">Cancel</button>
+      <button class="btn btn-success" onclick="saveWifeSum()">💾 Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- WIFE VISIT MODAL -->
+<div class="modal-overlay" id="modal-wifevis">
+  <div class="modal" style="max-width:680px">
+    <div class="modal-header">
+      <span class="modal-title" id="modal-wifevis-title">Visit Record</span>
+      <button class="modal-close" onclick="closeModal('modal-wifevis')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group"><label>Date *</label><input type="date" id="wv-date"/></div>
+        <div class="form-group"><label>Hospital / Clinic</label><input id="wv-hosp"/></div>
+        <div class="form-group"><label>Description</label><input id="wv-desc"/></div>
+        <div class="form-group"><label>Doctor</label><input id="wv-doc"/></div>
+        <div class="form-group" style="grid-column:1/-1"><label>Tests Conducted</label><textarea id="wv-tests" style="min-height:52px"></textarea></div>
+        <div class="form-group" style="grid-column:1/-1"><label>Medications</label><textarea id="wv-meds"></textarea></div>
+        <div class="form-group" style="grid-column:1/-1"><label>Remarks / Test Results</label><textarea id="wv-rem"></textarea></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-wifevis')">Cancel</button>
+      <button class="btn btn-success" onclick="saveWifeVisit()">💾 Save</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- CHANGE PIN MODAL -->
+<div class="modal-overlay" id="modal-changepin">
+  <div class="modal" style="max-width:400px">
+    <div class="modal-header">
+      <span class="modal-title">🔒 Change Admin PIN</span>
+      <button class="modal-close" onclick="closeModal('modal-changepin')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <div class="form-group">
+          <label>Current PIN</label>
+          <input type="password" inputmode="numeric" maxlength="6" id="pin-current"
+            class="cfg-input" placeholder="Enter current PIN" autocomplete="off"
+            style="letter-spacing:.25em;font-size:1.2rem;text-align:center"/>
+        </div>
+        <div class="form-group">
+          <label>New PIN (4–6 digits)</label>
+          <input type="password" inputmode="numeric" maxlength="6" id="pin-new"
+            class="cfg-input" placeholder="Enter new PIN" autocomplete="off"
+            style="letter-spacing:.25em;font-size:1.2rem;text-align:center"/>
+        </div>
+        <div class="form-group">
+          <label>Confirm New PIN</label>
+          <input type="password" inputmode="numeric" maxlength="6" id="pin-confirm"
+            class="cfg-input" placeholder="Re-enter new PIN" autocomplete="off"
+            style="letter-spacing:.25em;font-size:1.2rem;text-align:center"
+            onkeydown="if(event.key==='Enter') changePin()"/>
+        </div>
+        <p id="pin-change-msg" style="font-size:.82rem;min-height:20px;text-align:center;"></p>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-changepin')">Cancel</button>
+      <button class="btn btn-success" onclick="changePin()">✅ Confirm Change</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- PIN PROMPT MODAL — guards all sensitive actions -->
+<div class="modal-overlay" id="modal-pin-prompt">
+  <div class="modal" style="max-width:380px">
+    <div class="modal-header">
+      <span class="modal-title">🔒 PIN Required</span>
+      <button class="modal-close" onclick="closeModal('modal-pin-prompt')">✕</button>
+    </div>
+    <div class="modal-body" style="text-align:center;padding:24px">
+      <p style="font-size:.85rem;color:var(--text2);margin-bottom:6px">Authentication required for:</p>
+      <p style="font-weight:700;color:var(--accent);margin-bottom:20px" id="pin-prompt-action">this action</p>
+      <input type="password" inputmode="numeric" maxlength="6" id="pin-prompt-input"
+        class="cfg-input"
+        style="width:160px;letter-spacing:.3em;font-size:1.4rem;text-align:center;margin-bottom:12px"
+        placeholder="——————" autocomplete="off"/>
+      <p id="pin-prompt-error" style="font-size:.82rem;color:var(--danger);min-height:20px;margin-bottom:6px"></p>
+      <p id="pin-prompt-attempts" style="font-size:.76rem;min-height:18px;margin-bottom:4px"></p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-pin-prompt')">Cancel</button>
+      <button class="btn btn-success" onclick="submitPinPrompt()">🔓 Unlock</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<!-- FIREBASE SDK + APP LOGIC -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getFirestore, collection, doc, addDoc, setDoc, getDocs,
+  deleteDoc, serverTimestamp }
+  from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+// ── FIREBASE CONFIG ───────────────────────────────────────────────────────────
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyCeY-RiTvN4aTsFhA3PbcJRG95jZfpXrTA",
+  authDomain: "diabetic-records.firebaseapp.com",
+  projectId: "diabetic-records",
+  storageBucket: "diabetic-records.firebasestorage.app",
+  messagingSenderId: "1088531263405",
+  appId: "1:1088531263405:web:54991fce31cf6884ae7b24"
+};
+const FIXED_UID = '64oGBkwTKJOfCpGUW10eTrLdMgJ2';
+
+// ── STATE ─────────────────────────────────────────────────────────────────────
+let _db   = null;
+let _user = { uid: FIXED_UID, displayName:'Owner', email:'owner' };
+const _data = { readings:[], tests:[], wifesum:[], wifev:[] };
+const _sel  = { reading:null, test:null, wifesum:null, wifev:null };
+let _readPage = 1;
+const PAGE_SIZE = 50;
+let _sortField = 'date', _sortAsc = false;
+const _charts = {};
+
+// ── LOCAL STORAGE ─────────────────────────────────────────────────────────────
+const lsGet = k => { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } };
+const lsSet = (k,v) => localStorage.setItem(k, JSON.stringify(v));
+const $ = id => document.getElementById(id);
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+async function init() {
+  applyFont(_fs); // apply saved font size once DOM is ready
+  try {
+    const app = initializeApp(FIREBASE_CONFIG);
+    _db = getFirestore(app);
+    $('info-storage').textContent = 'Firebase Firestore';
+    $('config-banner').style.display = 'none';
+  } catch(e) {
+    console.error('Firebase init error:', e);
+    toast('Firebase error: ' + e.message, 'error');
+  }
+  $('auth-screen').style.display = 'none';
+  $('app').style.display = 'flex';
+  $('info-user').textContent = 'Owner';
+  loadPrefs();
+  await loadAllData();
+  renderSummary();
+}
+window.addEventListener('load', init);
+
+// ── FIREBASE SETTINGS PAGE ───────────────────────────────────────────────────
+window.saveFirebaseConfig = function() {
+  // No-op — config is hardcoded, function kept to avoid reference errors
+};
+window.testFirebaseConnection = async function() {
+  const st = $('firebase-status');
+  st.textContent = 'Testing…'; st.style.color = 'var(--text2)';
+  try {
+    await getDocs(collection(_db, '__test__'));
+    st.textContent = '✅ Connected!'; st.style.color = 'var(--accent2)';
+  } catch(e) {
+    if (e.code === 'permission-denied' || e.message.includes('Missing')) {
+      st.textContent = '✅ Firebase reachable'; st.style.color = 'var(--accent2)';
+    } else {
+      st.textContent = '❌ ' + e.message; st.style.color = 'var(--danger)';
+    }
+  }
+};
+window.doSignOut = function() { /* no-op — no login in this version */ };
+
+// ── DB HELPERS ────────────────────────────────────────────────────────────────
+const colRef  = name => collection(_db, 'users', FIXED_UID, name);
+const docRef  = (name,id) => doc(_db, 'users', FIXED_UID, name, id);
+const lkey    = name => 'data_' + FIXED_UID + '_' + name;
+
+async function dbAdd(name, data) {
+  if (_db) {
+    const r = await addDoc(colRef(name), { ...data, _ts: serverTimestamp() });
+    return r.id;
+  }
+  const arr = lsGet(lkey(name)) || [];
+  const id = 'l' + Date.now() + Math.random().toString(36).slice(2);
+  arr.push({ ...data, id }); lsSet(lkey(name), arr); return id;
+}
+async function dbSet(name, id, data) {
+  if (_db) { await setDoc(docRef(name,id), { ...data, _ts: serverTimestamp() }); return; }
+  const arr = lsGet(lkey(name)) || [];
+  const i = arr.findIndex(r => r.id === id);
+  if (i >= 0) arr[i] = { ...data, id }; else arr.push({ ...data, id });
+  lsSet(lkey(name), arr);
+}
+async function dbDel(name, id) {
+  if (_db) { await deleteDoc(docRef(name,id)); return; }
+  lsSet(lkey(name), (lsGet(lkey(name)) || []).filter(r => r.id !== id));
+}
+async function dbAll(name) {
+  if (_db) {
+    try {
+      const s = await getDocs(colRef(name));
+      return s.docs.map(d => ({ ...d.data(), id: d.id }));
+    } catch { return []; }
+  }
+  return lsGet(lkey(name)) || [];
+}
+
+// ── LOAD ALL DATA ─────────────────────────────────────────────────────────────
+async function loadAllData() {
+  const [r,t,ws,wv] = await Promise.all([
+    dbAll('readings'), dbAll('tests'), dbAll('wifesum'), dbAll('wifev')
+  ]);
+  _data.readings = r.sort((a,b) => (b.date||'').localeCompare(a.date||''));
+  _data.tests    = t.sort((a,b) => (b.testDate||'').localeCompare(a.testDate||''));
+  _data.wifesum  = ws.sort((a,b) => (+a.periodNum||0) - (+b.periodNum||0));
+  _data.wifev    = wv.sort((a,b) => (b.visitDate||'').localeCompare(a.visitDate||''));
+  $('info-count').textContent = r.length;
+  buildYearFilters(); renderReadings(); renderWifeSum(); renderWifeVisits(); renderTestSessions();
+}
+
+// ── PREFS ─────────────────────────────────────────────────────────────────────
+function loadPrefs() {
+  const p = lsGet('prefs') || {};
+  $('pref-name').value        = p.name     || '';
+  $('pref-wifename').value    = p.wifeName || '';
+  $('pref-ghigh').value       = p.gHigh    ?? 7.8;
+  $('pref-glow').value        = p.gLow     ?? 4.0;
+  $('pref-bpsys').value       = p.bpSys    ?? 140;
+  $('pref-bpdia').value       = p.bpDia    ?? 90;
+  // Firebase config fields hidden from UI — credentials not exposed
+}
+window.savePrefs = function() {
+  lsSet('prefs', {
+    name:     $('pref-name').value,
+    wifeName: $('pref-wifename').value,
+    gHigh:    +$('pref-ghigh').value,
+    gLow:     +$('pref-glow').value,
+    bpSys:    +$('pref-bpsys').value,
+    bpDia:    +$('pref-bpdia').value
+  });
+  toast('Preferences saved', 'success');
+};
+const prefs = () => lsGet('prefs') || { gHigh:7.8, gLow:4.0, bpSys:140, bpDia:90 };
+
+// ── FONT ──────────────────────────────────────────────────────────────────────
+let _fs = lsGet('fontSize') || 18;
+window.changeFont = function(d) { _fs = Math.min(24, Math.max(10, _fs+d)); applyFont(_fs); lsSet('fontSize',_fs); };
+function applyFont(sz) {
+  document.documentElement.style.fontSize = sz + 'px'; // set root html — rem values scale from here
+  const lbl = $('font-lbl');
+  if (lbl) lbl.textContent = sz;
+}
+
+// ── NAVIGATION ────────────────────────────────────────────────────────────────
+document.querySelectorAll('.nav-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const id = btn.dataset.dash;
+    showDash(id);
+    if (id === 'charts')  renderCharts();
+    if (id === 'diet')    renderDiet();
+    if (id === 'bp')      renderBP();
+    if (id === 'summary') renderSummary();
+  });
+});
+function showDash(id) {
+  document.querySelectorAll('.dashboard').forEach(d => d.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('dash-'+id)?.classList.add('active');
+  document.querySelector(`.nav-btn[data-dash="${id}"]`)?.classList.add('active');
+}
+
+// ── TABS ──────────────────────────────────────────────────────────────────────
+window.switchTab = function(group, id, btn) {
+  document.querySelectorAll(`[id^="${group}-"]`).forEach(p => p.classList.remove('active'));
+  document.getElementById(group+'-'+id)?.classList.add('active');
+  btn?.closest('.tabs')?.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  btn?.classList.add('active');
+};
+
+// ── TOAST ─────────────────────────────────────────────────────────────────────
+window.toast = function(msg, type='info') {
+  const el = document.createElement('div');
+  el.className = 'toast ' + type;
+  el.textContent = (type==='success'?'✅ ':type==='error'?'❌ ':'ℹ️ ') + msg;
+  $('toast-container').appendChild(el);
+  setTimeout(() => el.remove(), 3500);
+};
+
+// ── MODALS ────────────────────────────────────────────────────────────────────
+window.closeModal = id => document.getElementById(id).classList.remove('open');
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+document.querySelectorAll('.modal-overlay').forEach(m =>
+  m.addEventListener('click', e => { if (e.target === m) m.classList.remove('open'); })
+);
+
+// ── HELPERS ───────────────────────────────────────────────────────────────────
+const arrAvg = a => a.length ? a.reduce((s,v) => s+v, 0) / a.length : 0;
+const arrMed = a => { const s=[...a].sort((x,y)=>x-y); return s[Math.floor(s.length/2)] || 0; };
+const trunc  = (s,n) => s ? (s.length>n ? s.slice(0,n)+'…' : s) : '';
+
+// ── SUMMARY ───────────────────────────────────────────────────────────────────
+window.renderSummary = function() {
+  const r = _data.readings, p = prefs();
+  const d30 = new Date(Date.now() - 30*864e5);
+  const rec  = r.filter(x => x.date && new Date(x.date+'T12:00') >= d30);
+  const gv   = r.filter(x => x.glucoseMmol).map(x => +x.glucoseMmol);
+  const gvR  = rec.filter(x => x.glucoseMmol).map(x => +x.glucoseMmol);
+  const sv   = r.filter(x => x.bpSys).map(x => +x.bpSys);
+  const g30  = gvR.length ? arrAvg(gvR).toFixed(2) : '—';
+  const gc   = +g30 < p.gHigh ? 'success' : 'danger';
+  const inRange = gv.length ? Math.round(100*gv.filter(v=>v>=p.gLow&&v<=p.gHigh).length/gv.length)+'%' : '—';
+  $('sum-cards').innerHTML = `
+    <div class="stat-card accent"><div class="label">Total Records</div><div class="value">${r.length}</div><div class="sub">all-time</div></div>
+    <div class="stat-card accent"><div class="label">Last 30 Days</div><div class="value">${rec.length}</div><div class="sub">readings</div></div>
+    <div class="stat-card ${gc}"><div class="label">30-Day Avg Glucose</div><div class="value">${g30}</div><div class="sub">mmol/L</div></div>
+    <div class="stat-card warn"><div class="label">Avg Systolic</div><div class="value">${sv.length?Math.round(arrAvg(sv)):'—'}</div><div class="sub">mmHg</div></div>
+    <div class="stat-card ${gv.filter(v=>v>=p.gLow&&v<=p.gHigh).length/Math.max(1,gv.length)>=.7?'success':'warn'}">
+      <div class="label">% In Range</div><div class="value">${inRange}</div><div class="sub">${p.gLow}–${p.gHigh} mmol/L</div></div>`;
+  const last = r[0];
+  const grid = $('sum-grid'); grid.innerHTML = '';
+  if (!last) return;
+  const bp  = last.bpSys ? `${last.bpSys}/${last.bpDia} mmHg` : '—';
+  const gc2 = +last.glucoseMmol < p.gHigh ? 'var(--accent2)' : 'var(--danger)';
+  const gsm = gv.length ? `
+    <div class="kv-row"><span class="k">Average</span><span class="v">${arrAvg(gv).toFixed(2)} mmol/L</span></div>
+    <div class="kv-row"><span class="k">Min / Max</span><span class="v">${Math.min(...gv).toFixed(2)} / ${Math.max(...gv).toFixed(2)}</span></div>
+    <div class="kv-row"><span class="k">% Above ${p.gHigh}</span><span class="v" style="color:var(--danger)">${Math.round(100*gv.filter(v=>v>p.gHigh).length/gv.length)}%</span></div>
+    <div class="kv-row"><span class="k">% Below ${p.gLow}</span><span class="v" style="color:var(--accent)">${Math.round(100*gv.filter(v=>v<p.gLow).length/gv.length)}%</span></div>` : '<div class="kv-row"><span class="k">No data</span><span class="v">—</span></div>';
+  const bpsm = sv.length ? `
+    <div class="kv-row"><span class="k">Avg Systolic</span><span class="v">${Math.round(arrAvg(sv))} mmHg</span></div>
+    <div class="kv-row"><span class="k">Max Systolic</span><span class="v">${Math.max(...sv)} mmHg</span></div>
+    <div class="kv-row"><span class="k">% Stage 2 (≥${p.bpSys})</span><span class="v" style="color:var(--danger)">${Math.round(100*sv.filter(v=>v>=p.bpSys).length/sv.length)}%</span></div>
+    <div class="kv-row"><span class="k">% Normal (&lt;120)</span><span class="v" style="color:var(--accent2)">${Math.round(100*sv.filter(v=>v<120).length/sv.length)}%</span></div>` : '<div class="kv-row"><span class="k">No data</span><span class="v">—</span></div>';
+  grid.innerHTML = `
+    <div class="summary-block"><h3>📊 Last Reading — ${last.date}</h3>
+      <div class="kv-row"><span class="k">Glucose</span><span class="v" style="color:${gc2}">${last.glucoseMmol||'—'} mmol/L (${last.glucoseMgdl||'—'} mg/dL)</span></div>
+      <div class="kv-row"><span class="k">Blood Pressure</span><span class="v">${bp}</span></div>
+      <div class="kv-row"><span class="k">Pulse</span><span class="v">${last.pulse||'—'} bpm</span></div>
+      <div class="kv-row"><span class="k">Weight</span><span class="v">${last.weight||'—'} kg</span></div>
+      <div class="kv-row"><span class="k">Meal</span><span class="v">${last.mealType||'—'}</span></div>
+      <div class="kv-row"><span class="k">Meal Desc</span><span class="v" style="font-family:var(--font);font-size:.75rem">${trunc(last.dinnerMeal||'—',40)}</span></div>
+    </div>
+    <div class="summary-block"><h3>🩸 Glucose Stats</h3>${gsm}</div>
+    <div class="summary-block"><h3>❤️ BP Stats</h3>${bpsm}</div>`;
+  const t30 = rec.filter(x=>x.glucoseMmol).sort((a,b)=>a.date.localeCompare(b.date));
+  if (t30.length > 2) {
+    $('sum-trend-wrap').style.display = 'block';
+    renderLineChart('sum-trend-chart', t30.map(x=>x.date), [{
+      label:'Glucose mmol/L', data:t30.map(x=>+x.glucoseMmol),
+      borderColor:'#3b82f6', backgroundColor:'rgba(59,130,246,.08)', tension:.3, pointRadius:2
+    }], { high:p.gHigh, low:p.gLow });
+  }
+};
+
+// ── READINGS ──────────────────────────────────────────────────────────────────
+window.filterReadings = function() { _readPage = 1; renderReadings(); };
+window.sortBy = function(f) {
+  if (_sortField===f) _sortAsc=!_sortAsc; else { _sortField=f; _sortAsc=false; }
+  _data.readings.sort((a,b) => { const va=a[f]||'',vb=b[f]||''; return _sortAsc?va>vb?1:-1:va<vb?1:-1; });
+  renderReadings();
+};
+function renderReadings() {
+  const q = ($('read-search').value||'').toLowerCase();
+  const filtered = _data.readings.filter(r => !q ||
+    [r.date,r.mealType,r.dinnerMeal,r.remarks,r.medHypert,r.medDiab,r.timeOfReading].join(' ').toLowerCase().includes(q));
+  const pages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  _readPage = Math.min(_readPage, pages);
+  const slice = filtered.slice((_readPage-1)*PAGE_SIZE, _readPage*PAGE_SIZE);
+  const p = prefs();
+  $('readings-tbody').innerHTML = slice.map(r => {
+    const g  = +r.glucoseMmol;
+    const gc = g>p.gHigh ? 'badge badge-high' : g<p.gLow ? 'badge badge-low' : 'badge badge-norm';
+    const bp = r.bpSys ? `${r.bpSys}/${r.bpDia}` : '';
+    return `<tr data-id="${r.id}" onclick="selRow('reading','${r.id}',this)" ondblclick="editSelectedReading()">
+      <td>${r.date||''}</td><td>${r.dayOfWeek||''}</td><td>${r.weight||''}</td>
+      <td>${bp}</td><td>${r.pulse||''}</td>
+      <td><span class="${gc}">${r.glucoseMmol||''}</span></td><td>${r.glucoseMgdl||''}</td>
+      <td>${r.mealType||''}</td><td>${r.timeOfReading||''}</td>
+      <td title="${(r.dinnerMeal||'').replace(/"/g,'')}">${trunc(r.dinnerMeal,30)}</td>
+      <td>${trunc((r.medHypert||'').replace(/\|/g,', '),28)}</td>
+      <td>${trunc((r.medDiab||'').replace(/\|/g,', '),28)}</td>
+      <td>${trunc(r.remarks,28)}</td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="13" style="text-align:center;color:var(--text3);padding:28px">No records found</td></tr>';
+  renderPagination('read-pagination', _readPage, pages, filtered.length, p => { _readPage=p; renderReadings(); });
+}
+function renderPagination(elId, cur, total, count, cb) {
+  const el = $(elId); if (!el || total<=1) { if(el) el.innerHTML=''; return; }
+  const s=Math.max(1,cur-2), e=Math.min(total,cur+2); let h='';
+  if (cur>1) h+=`<button class="page-btn" onclick="(${cb})(${cur-1})">‹</button>`;
+  for (let i=s;i<=e;i++) h+=`<button class="page-btn${i===cur?' active':''}" onclick="(${cb})(${i})">${i}</button>`;
+  if (cur<total) h+=`<button class="page-btn" onclick="(${cb})(${cur+1})">›</button>`;
+  h+=`<span class="page-info">${(cur-1)*PAGE_SIZE+1}–${Math.min(cur*PAGE_SIZE,count)} of ${count}</span>`;
+  el.innerHTML = h;
+}
+window.selRow = function(type, id, tr) {
+  tr.closest('tbody')?.querySelectorAll('tr.selected').forEach(r=>r.classList.remove('selected'));
+  tr.classList.add('selected'); _sel[type] = id;
+};
+
+// ── READING MODAL ─────────────────────────────────────────────────────────────
+window.openReadingModal = function(id=null) {
+  _sel.reading = id;
+  $('modal-reading-title').textContent = id ? 'Edit Reading' : 'Add New Reading';
+  const r = id ? _data.readings.find(x=>x.id===id) : null;
+  const today = new Date().toISOString().split('T')[0];
+  $('r-date').value   = r?.date      || today;
+  $('r-weight').value = r?.weight    || '';
+  $('r-bps').value    = r?.bpSys     || '';
+  $('r-bpd').value    = r?.bpDia     || '';
+  $('r-pulse').value  = r?.pulse     || '';
+  $('r-gmg').value    = r?.glucoseMgdl || '';
+  $('r-gml').value    = r?.glucoseMmol || '';
+  $('r-time').value   = r?.readingTime || '';
+  $('r-stress').value = r?.stressSign  || '';
+  $('r-ex').value     = r?.exercise    || '';
+  $('r-dinn').value   = r?.dinnerMeal  || '';
+  $('r-rem').value    = r?.remarks     || '';
+  document.querySelectorAll('[name=r-tor]').forEach(rb => rb.checked = rb.value===(r?.timeOfReading||'Morning'));
+  document.querySelectorAll('[name=r-meal]').forEach(rb => rb.checked = rb.value===(r?.mealType||'Breakfast'));
+  const mh = (r?.medHypert||'').split('|').filter(Boolean);
+  const md = (r?.medDiab||'').split('|').filter(Boolean);
+  document.querySelectorAll('#r-medh-group input').forEach(cb => cb.checked = mh.includes(cb.value));
+  document.querySelectorAll('#r-medd-group input').forEach(cb => cb.checked = md.includes(cb.value));
+  if (r?.glucoseMgdl) calcMmol();
+  openModal('modal-reading');
+};
+window.editSelectedReading = function() {
+  const id = _sel.reading || document.querySelector('#readings-tbody tr.selected')?.dataset.id;
+  if (!id) { toast('Select a record first','error'); return; }
+  openReadingModal(id);
+};
+window.deleteReading = async function() {
+  const id = _sel.reading || document.querySelector('#readings-tbody tr.selected')?.dataset.id;
+  if (!id) { toast('Select a record first','error'); return; }
+  if (!confirm('Delete this reading?')) return;
+  await dbDel('readings', id);
+  _data.readings = _data.readings.filter(r => r.id!==id);
+  _sel.reading = null; renderReadings(); renderSummary(); toast('Deleted','success');
+};
+window.saveReading = async function() {
+  // ── Button debounce — prevent double-submit ───────────────────────────────
+  const saveBtn = document.querySelector('#modal-reading .btn-success');
+  if (saveBtn && saveBtn.disabled) return;
+  if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = '⏳ Saving…'; }
+  const _reEnable = () => { if(saveBtn){ saveBtn.disabled=false; saveBtn.textContent='💾 Save Reading'; } };
+
+  try {
+    const date = $('r-date').value; if (!date) { toast('Date required','error'); _reEnable(); return; }
+    const gmg = parseFloat($('r-gmg').value) || null;
+    const gml = gmg ? parseFloat((gmg/18.016).toFixed(2)) : null;
+    const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    const dow  = days[new Date(date+'T12:00').getDay()] || '';
+    const tor  = document.querySelector('[name=r-tor]:checked')?.value  || 'Morning';
+    const meal = document.querySelector('[name=r-meal]:checked')?.value || 'Breakfast';
+    const mh   = [...document.querySelectorAll('#r-medh-group input:checked')].map(c=>c.value).join('|');
+    const md   = [...document.querySelectorAll('#r-medd-group input:checked')].map(c=>c.value).join('|');
+    const data = {
+      date, dayOfWeek:dow,
+      weight:        parseFloat($('r-weight').value)  || null,
+      bpSys:         parseInt($('r-bps').value)        || null,
+      bpDia:         parseInt($('r-bpd').value)        || null,
+      pulse:         parseInt($('r-pulse').value)      || null,
+      glucoseMgdl:   gmg, glucoseMmol: gml,
+      readingTime:   $('r-time').value   || null,
+      timeOfReading: tor, mealType: meal,
+      dinnerMeal:    $('r-dinn').value.trim()   || null,
+      stressSign:    $('r-stress').value.trim() || null,
+      exercise:      $('r-ex').value.trim()     || null,
+      remarks:       $('r-rem').value.trim()    || null,
+      medHypert:     mh || null, medDiab: md || null,
+    };
+
+    if (_sel.reading) {
+      // ── Editing existing record — no dup check needed ──────────────────
+      await dbSet('readings', _sel.reading, data);
+      const i = _data.readings.findIndex(r => r.id===_sel.reading);
+      if (i>=0) _data.readings[i] = { ...data, id:_sel.reading };
+      toast('Reading updated', 'success');
+    } else {
+      // ── New record — check for duplicate (same date + time-of-reading) ──
+      const dupKey = date + '|' + tor;
+      const dup = _data.readings.find(r => (r.date+'|'+r.timeOfReading) === dupKey);
+      if (dup) {
+        // Show duplicate warning with option to save anyway
+        const gluc = dup.glucoseMmol ? ` (glucose: ${dup.glucoseMmol} mmol/L)` : '';
+        const proceed = confirm(
+          `⚠️ Duplicate detected!
+
+` +
+          `A ${tor} reading for ${date} already exists${gluc}.
+
+` +
+          `Click OK to save anyway, or Cancel to go back and check.`
+        );
+        if (!proceed) { _reEnable(); return; }
+      }
+      const id = await dbAdd('readings', data);
+      _data.readings.unshift({ ...data, id });
+      toast('Reading added', 'success');
+    }
+
+    _data.readings.sort((a,b) => (b.date||'').localeCompare(a.date||''));
+    closeModal('modal-reading'); renderReadings(); renderSummary();
+    _sel.reading = null;
+  } catch(e) {
+    toast('Save failed: ' + e.message, 'error');
+  } finally {
+    _reEnable();
+  }
+};
+window.calcMmol   = function() { const mg=parseFloat($('r-gmg').value); $('r-gml').value=isNaN(mg)?'':(mg/18.016).toFixed(2); };
+window.onTorChange= function() { const m={Morning:'07:00',Noon:'12:00',Evening:'19:00',Others:''}; const t=document.querySelector('[name=r-tor]:checked')?.value; if(!$('r-time').value&&m[t]!==undefined) $('r-time').value=m[t]; autoMeal(); };
+window.autoMeal   = function() { const t=$('r-time').value; if(!t) return; const h=parseInt(t); let m='Breakfast'; if(h>=11&&h<15) m='Lunch'; else if(h>=15&&h<22) m='Dinner'; document.querySelectorAll('[name=r-meal]').forEach(rb=>rb.checked=rb.value===m); };
+
+// ── EXPORT / IMPORT ───────────────────────────────────────────────────────────
+function downloadFile(filename, mime, content) {
+  const a = document.createElement('a');
+  a.href = `data:${mime};charset=utf-8,` + encodeURIComponent(content);
+  a.download = filename; document.body.appendChild(a); a.click(); document.body.removeChild(a);
+}
+function exportCSV(data, cols, filename) {
+  const csv = [cols.join(','), ...data.map(r => cols.map(c => `"${String(r[c]??'').replace(/"/g,'""')}"`).join(','))].join('\n');
+  downloadFile(filename, 'text/csv', csv);
+}
+function parseCSV(text) {
+  const lines = text.split('\n').filter(l=>l.trim()); if (!lines.length) return [];
+  const hdr = parseLine(lines[0]);
+  return lines.slice(1).map(l => { const vals=parseLine(l); return Object.fromEntries(hdr.map((h,i)=>[h,vals[i]??''])); }).filter(r=>Object.values(r).some(v=>v));
+}
+function parseLine(line) {
+  const res=[]; let cur='',inQ=false;
+  for (const ch of line) { if(ch==='"'){inQ=!inQ;}else if(ch===','&&!inQ){res.push(cur.trim());cur='';}else cur+=ch; }
+  res.push(cur.trim()); return res.map(v=>v.replace(/^"|"$/g,'').trim()||null);
+}
+function fileInput(accept, cb) { const inp=document.createElement('input'); inp.type='file'; inp.accept=accept; inp.onchange=async e=>cb(await e.target.files[0].text()); inp.click(); }
+function normKeys(obj) {
+  const MAP = { day_of_week:'dayOfWeek',weight_kg:'weight',bp_systolic:'bpSys',bp_diastolic:'bpDia',
+    glucose_mgdl:'glucoseMgdl',glucose_mmol:'glucoseMmol',meal_type:'mealType',time_of_reading:'timeOfReading',
+    reading_time:'readingTime',dinner_meal:'dinnerMeal',stress_sign:'stressSign',med_hypert:'medHypert',
+    med_diabetes:'medDiab',med_diab:'medDiab',test_date:'testDate',visit_date:'visitDate',period_num:'periodNum' };
+  const out={};
+  for (const [k,v] of Object.entries(obj)) { out[MAP[k]||k.replace(/_([a-z])/g,(_,c)=>c.toUpperCase())]=v; }
+  return out;
+}
+window.exportReadingsCSV = function() { exportCSV(_data.readings,['date','dayOfWeek','weight','bpSys','bpDia','pulse','glucoseMgdl','glucoseMmol','mealType','timeOfReading','readingTime','dinnerMeal','medHypert','medDiab','stressSign','exercise','remarks'],'Readings_Export.csv'); };
+window.importReadingsCSV = function() {
+  fileInput('.csv', async text => {
+    const rows=parseCSV(text); let n=0,sk=0;
+    const ex=new Set(_data.readings.map(r=>(r.date||'')+'|'+(r.timeOfReading||'')));
+    for (const row of rows) {
+      const d=normKeys(row); const k=(d.date||'')+'|'+(d.timeOfReading||'');
+      if(ex.has(k)){sk++;continue;}
+      const id=await dbAdd('readings',d); _data.readings.unshift({...d,id}); ex.add(k); n++;
+    }
+    _data.readings.sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+    renderReadings(); renderSummary(); toast(`Imported ${n}, skipped ${sk}`,'success');
+  });
+};
+
+// ── BACKUP / RESTORE ──────────────────────────────────────────────────────────
+window.backupAllData = async function() {
+  const st=$('backup-status');
+  st.style.color='var(--text2)'; st.textContent='⏳ Preparing backup…';
+  const payload={_version:2,_exported:new Date().toISOString(),readings:_data.readings,tests:_data.tests,wifesum:_data.wifesum,wifev:_data.wifev};
+  downloadFile(`DiabeticsBackup_${new Date().toISOString().slice(0,10)}.json`,'application/json',JSON.stringify(payload,null,2));
+  st.style.color='var(--accent2)'; st.textContent=`✅ Backup saved — ${_data.readings.length} readings, ${_data.tests.length} test sessions, ${_data.wifesum.length} treatment periods, ${_data.wifev.length} wife visits.`;
+};
+window.restoreAllData = function() {
+  const st=$('backup-status');
+  fileInput('.json', async text => {
+    st.style.color='var(--text2)'; st.textContent='⏳ Restoring…';
+    try {
+      const payload=JSON.parse(text); if(!payload._version){st.style.color='var(--danger)';st.textContent='❌ Invalid backup file.';return;}
+      let added={r:0,t:0,ws:0,wv:0},sk=0;
+      const exR=new Set(_data.readings.map(r=>(r.date||'')+'|'+(r.timeOfReading||'')));
+      for(const r of(payload.readings||[])){const k=(r.date||'')+'|'+(r.timeOfReading||'');if(exR.has(k)){sk++;continue;}const{id:_,...rest}=r;const nid=await dbAdd('readings',rest);_data.readings.unshift({...rest,id:nid});exR.add(k);added.r++;}
+      _data.readings.sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+      const exT=new Set(_data.tests.map(s=>(s.testDate||'')+'|'+(s.location||'')));
+      for(const s of(payload.tests||[])){const k=(s.testDate||'')+'|'+(s.location||'');if(exT.has(k)){sk++;continue;}const{id:_,...rest}=s;const nid=await dbAdd('tests',rest);_data.tests.unshift({...rest,id:nid});exT.add(k);added.t++;}
+      const exWS=new Set(_data.wifesum.map(r=>String(r.periodNum||'')));
+      for(const r of(payload.wifesum||[])){if(exWS.has(String(r.periodNum||''))){sk++;continue;}const{id:_,...rest}=r;const nid=await dbAdd('wifesum',rest);_data.wifesum.push({...rest,id:nid});exWS.add(String(r.periodNum||''));added.ws++;}
+      const exWV=new Set(_data.wifev.map(r=>(r.visitDate||'')+'|'+(r.hospital||'')+'|'+(r.description||'')));
+      for(const r of(payload.wifev||[])){const k=(r.visitDate||'')+'|'+(r.hospital||'')+'|'+(r.description||'');if(exWV.has(k)){sk++;continue;}const{id:_,...rest}=r;const nid=await dbAdd('wifev',rest);_data.wifev.unshift({...rest,id:nid});exWV.add(k);added.wv++;}
+      $('info-count').textContent=_data.readings.length;
+      buildYearFilters();renderReadings();renderWifeSum();renderWifeVisits();renderTestSessions();renderSummary();
+      st.style.color='var(--accent2)';st.textContent=`✅ Restored — Added: ${added.r} readings, ${added.t} tests, ${added.ws} wife periods, ${added.wv} wife visits. Skipped: ${sk} duplicates.`;
+      toast('Restore complete!','success');
+    } catch(e){st.style.color='var(--danger)';st.textContent='❌ Restore failed: '+e.message;}
+  });
+};
+window.saveSettingsFile = function() {
+  downloadFile(`DiabeticsSettings_${new Date().toISOString().slice(0,10)}.json`,'application/json',JSON.stringify({_version:1,preferences:lsGet('prefs')||{}},null,2));
+  toast('Settings file saved','success');
+};
+window.restoreSettingsFile = function() {
+  fileInput('.json', async text => {
+    try { const p=JSON.parse(text); if(p.preferences){lsSet('prefs',p.preferences);loadPrefs();} toast('Settings loaded','success'); }
+    catch(e){toast('Failed: '+e.message,'error');}
+  });
+};
+
+// ── CHART HELPERS ─────────────────────────────────────────────────────────────
+function renderLineChart(cid, labels, datasets, opts={}) {
+  if (_charts[cid]) _charts[cid].destroy();
+  const ctx = document.getElementById(cid)?.getContext('2d'); if (!ctx) return;
+  _charts[cid] = new Chart(ctx, { type:'line', data:{labels,datasets}, options:{
+    responsive:true, maintainAspectRatio:false,
+    plugins:{ legend:{labels:{color:'#9aa5b8',font:{size:10}}}, tooltip:{backgroundColor:'#1e2535',titleColor:'#e8edf5',bodyColor:'#9aa5b8'} },
+    scales:{ x:{ticks:{color:'#5a6580',maxTicksLimit:14,font:{size:9}},grid:{color:'#2a3348'}},
+             y:{ticks:{color:'#5a6580',font:{size:9}},grid:{color:'#2a3348'}} }
+  }});
+}
+function renderBarChart(cid, labels, datasets) {
+  if (_charts[cid]) _charts[cid].destroy();
+  const ctx = document.getElementById(cid)?.getContext('2d'); if (!ctx) return;
+  _charts[cid] = new Chart(ctx, { type:'bar', data:{labels,datasets}, options:{
+    responsive:true, maintainAspectRatio:false,
+    plugins:{ legend:{labels:{color:'#9aa5b8',font:{size:10}}}, tooltip:{backgroundColor:'#1e2535',titleColor:'#e8edf5',bodyColor:'#9aa5b8'} },
+    scales:{ x:{ticks:{color:'#5a6580',font:{size:9}},grid:{color:'#2a3348'}},
+             y:{ticks:{color:'#5a6580',font:{size:9}},grid:{color:'#2a3348'}} }
+  }});
+}
+function buildYearFilters() {
+  const yrs = [...new Set(_data.readings.filter(r=>r.date).map(r=>r.date.slice(0,4)))].sort((a,b)=>b-a);
+  ['chart-year','bp-year'].forEach(id => { const el=$(id); if(!el) return; el.innerHTML='<option value="all">All Years</option>'+yrs.map(y=>`<option>${y}</option>`).join(''); });
+}
+const filterYear = (arr,field,yr) => yr==='all' ? arr : arr.filter(r=>(r[field]||'').startsWith(yr));
+
+// ── CHARTS ────────────────────────────────────────────────────────────────────
+window.renderCharts = function() {
+  const yr = $('chart-year')?.value||'all', p=prefs();
+  const data = filterYear(_data.readings,'date',yr).filter(r=>r.date);
+  const pts = data.filter(r=>r.glucoseMmol).sort((a,b)=>a.date.localeCompare(b.date));
+  if (pts.length) {
+    const labels=pts.map(r=>r.date), vals=pts.map(r=>+r.glucoseMmol);
+    const roll=vals.map((_,i)=>{ const sl=vals.slice(Math.max(0,i-29),i+1); return arrAvg(sl); });
+    renderLineChart('c-trend',labels,[
+      {label:'Glucose mmol/L',data:vals,borderColor:'#3b82f6',backgroundColor:'rgba(59,130,246,.06)',tension:.2,pointRadius:2,borderWidth:1.5},
+      {label:'30-pt Avg',data:roll,borderColor:'#10b981',backgroundColor:'transparent',tension:.4,pointRadius:0,borderWidth:2}
+    ],{high:p.gHigh,low:p.gLow});
+  }
+  const DAYS=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  const dm={}; DAYS.forEach(d=>dm[d]=[]);
+  data.filter(r=>r.glucoseMmol&&r.dayOfWeek).forEach(r=>{if(dm[r.dayOfWeek])dm[r.dayOfWeek].push(+r.glucoseMmol);});
+  renderBarChart('c-dow',DAYS,[{label:'Avg Glucose mmol/L',data:DAYS.map(d=>dm[d].length?+arrAvg(dm[d]).toFixed(2):0),backgroundColor:DAYS.map(d=>arrAvg(dm[d])>p.gHigh?'rgba(239,68,68,.7)':'rgba(16,185,129,.7)'),borderRadius:4}]);
+  const MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const mm={}; MONTHS.forEach(m=>mm[m]=[]);
+  data.filter(r=>r.glucoseMmol&&r.date).forEach(r=>{const mn=new Date(r.date+'T12:00').toLocaleString('en',{month:'short'});if(mm[mn])mm[mn].push(+r.glucoseMmol);});
+  renderBarChart('c-month',MONTHS,[{label:'Avg Glucose mmol/L',data:MONTHS.map(m=>mm[m].length?+arrAvg(mm[m]).toFixed(2):0),backgroundColor:MONTHS.map(m=>{const v=arrAvg(mm[m]);return v>p.gHigh?'rgba(239,68,68,.7)':v>7?'rgba(245,158,11,.7)':'rgba(16,185,129,.7)';}),borderRadius:4}]);
+  const ym={}; data.filter(r=>r.glucoseMmol&&r.date).forEach(r=>{const y=r.date.slice(0,4);if(!ym[y])ym[y]=[];ym[y].push(+r.glucoseMmol);});
+  const yrs=Object.keys(ym).sort();
+  renderLineChart('c-year',yrs,[{label:'Yearly Avg mmol/L',data:yrs.map(y=>+arrAvg(ym[y]).toFixed(2)),borderColor:'#8b5cf6',backgroundColor:'rgba(139,92,246,.08)',tension:.3,pointRadius:6,pointBackgroundColor:'#8b5cf6'}],{high:p.gHigh});
+  const bpPts=data.filter(r=>r.bpSys&&r.bpDia).sort((a,b)=>a.date.localeCompare(b.date));
+  if(bpPts.length) renderLineChart('c-bp',bpPts.map(r=>r.date),[
+    {label:'Systolic',data:bpPts.map(r=>+r.bpSys),borderColor:'rgba(239,68,68,.8)',backgroundColor:'transparent',tension:.2,pointRadius:2},
+    {label:'Diastolic',data:bpPts.map(r=>+r.bpDia),borderColor:'rgba(59,130,246,.8)',backgroundColor:'transparent',tension:.2,pointRadius:2}
+  ],{high:p.bpSys});
+  const wtPts=data.filter(r=>r.weight).sort((a,b)=>a.date.localeCompare(b.date));
+  if(wtPts.length) renderLineChart('c-wt',wtPts.map(r=>r.date),[{label:'Weight kg',data:wtPts.map(r=>+r.weight),borderColor:'#f59e0b',backgroundColor:'rgba(245,158,11,.08)',tension:.3,pointRadius:3}]);
+};
+
+// ── DIET ──────────────────────────────────────────────────────────────────────
+const MCATS=[
+  ['Pizza/Fast Food',['pizza','burger','mcdo','kfc','jollibee','fastfood','fried chicken']],
+  ['Rice-based',['rice','bukhari','nasi','biryani','kabsa','mandi']],
+  ['Noodles/Soup/Pasta',['noodle','pasta','mee','spaghetti','ramen','laksa','lomi','pansit','sopas']],
+  ['Egg-focused',['egg','omelette','paratha']],
+  ['Bread-based',['bread','sandwich','toast','bun','wrap']],
+  ['Fish/Seafood',['fish','salmon','tuna','sardine','prawn','shrimp','seafood','bangus','squid']],
+  ['Fruits',['fruit','banana','apple','mango','watermelon','grapes','papaya','dates']],
+  ['Chicken',['chicken','chick','ayam','inasal']],
+  ['Beef/Mutton',['beef','mutton','lamb','steak']],
+  ['Vegetables/Tofu',['vege','salad','tofu','broccoli','eggplant','okra','ampalaya']],
+  ['Filipino Dishes',['adobo','pinakbet','sinigang','caldereta','mechado','afritada','lumpia','pansit']],
+  ['Half/Small Portion',['half','1/2','small port']],
+];
+const catMeal = m => { const ml=m.toLowerCase(); for(const[c,kws] of MCATS) if(kws.some(k=>ml.includes(k))) return c; return 'Other/Restaurant'; };
+window.renderDiet = function() {
+  const data=_data.readings.filter(r=>r.dinnerMeal&&r.glucoseMmol).map(r=>({meal:r.dinnerMeal.trim(),g:+r.glucoseMmol}));
+  const cats={}; data.forEach(d=>{const c=catMeal(d.meal);if(!cats[c])cats[c]=[];cats[c].push(d.g);});
+  $('diet-cat-tbody').innerHTML=Object.entries(cats).sort((a,b)=>arrAvg(a[1])-arrAvg(b[1])).map(([c,v])=>
+    `<tr><td>${c}</td><td>${v.length}</td><td>${arrAvg(v).toFixed(2)}</td><td>${arrMed(v).toFixed(2)}</td><td>${Math.min(...v).toFixed(2)}</td><td>${Math.max(...v).toFixed(2)}</td></tr>`
+  ).join('')||'<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:24px">No meal+glucose data yet</td></tr>';
+  const md={}; data.forEach(d=>{if(!md[d.meal])md[d.meal]=[];md[d.meal].push(d.g);});
+  const fil=Object.entries(md).filter(([,v])=>v.length>=3);
+  const best=[...fil].sort((a,b)=>arrAvg(a[1])-arrAvg(b[1])).slice(0,15);
+  const worst=[...fil].sort((a,b)=>arrAvg(b[1])-arrAvg(a[1])).slice(0,10);
+  const rrow=(arr,icon)=>arr.map(([m,v],i)=>`<tr><td>${i+1}</td><td>${icon} ${m}</td><td>${v.length}</td><td>${arrAvg(v).toFixed(2)}</td><td>${Math.min(...v).toFixed(2)}</td><td>${Math.max(...v).toFixed(2)}</td></tr>`).join('');
+  $('diet-best-tbody').innerHTML=rrow(best,'✅')||'<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:24px">Need ≥3 readings per meal</td></tr>';
+  $('diet-worst-tbody').innerHTML=rrow(worst,'⚠️')||'<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:24px">Need ≥3 readings per meal</td></tr>';
+  const ov=data.length?arrAvg(data.map(d=>d.g)):0;
+  $('diet-drec').innerHTML=`
+    <div class="cards-row">
+      <div class="stat-card accent"><div class="label">Records Analysed</div><div class="value">${data.length}</div></div>
+      <div class="stat-card ${ov<7.8?'success':'danger'}"><div class="label">Overall Avg</div><div class="value">${ov.toFixed(2)}</div><div class="sub">mmol/L</div></div>
+      <div class="stat-card success"><div class="label">% Below 7.0</div><div class="value">${data.length?Math.round(100*data.filter(d=>d.g<7).length/data.length)+'%':'—'}</div></div>
+      <div class="stat-card danger"><div class="label">% Above 7.8</div><div class="value">${data.length?Math.round(100*data.filter(d=>d.g>7.8).length/data.length)+'%':'—'}</div></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div class="summary-block"><h3 style="color:var(--accent2)">✅ Favour These</h3>
+        ${[['Eggplant-based dishes','~75 mg/dL average — best single food'],['Soup-based (Sinigang, Lomi)','Average 80–96 mg/dL'],['Egg-focused meals','Average 86–94 mg/dL'],['Half / reduced portions','Reduces glucose ~0.3 mmol/L'],['Noodles over plain rice','Noodles avg ~5.3 vs Rice ~5.5']].map(([m,n])=>`<div class="kv-row"><span class="k">${m}</span><span class="v" style="font-family:var(--font);font-size:.74rem;color:var(--text2)">${n}</span></div>`).join('')}
+      </div>
+      <div class="summary-block"><h3 style="color:var(--danger)">⚠️ Limit or Avoid</h3>
+        ${[['Plain rice + protein only','Highest spikes; add vegetables'],['Pizza & fast food','0.7+ mmol/L above average'],['Fruit-heavy dinners','Spikes more than expected'],['Rich coconut curries','Consistently elevated'],['Large unrestricted portions','Halving helps significantly']].map(([m,n])=>`<div class="kv-row"><span class="k">${m}</span><span class="v" style="font-family:var(--font);font-size:.74rem;color:var(--text2)">${n}</span></div>`).join('')}
+      </div>
+    </div>`;
+};
+
+// ── BP ANALYSIS ───────────────────────────────────────────────────────────────
+function bpCat(s,d){if(s<120&&d<80)return['Normal','var(--accent2)'];if(s<130&&d<80)return['Elevated','#6baf7a'];if(s<140||d<90)return['Stage 1 High','var(--warn)'];if(s<180||d<120)return['Stage 2 High','var(--danger)'];return['Hypertensive Crisis','#8b0000'];}
+window.renderBP = function() {
+  const yr=$('bp-year')?.value||'all', p=prefs();
+  const data=filterYear(_data.readings,'date',yr).filter(r=>r.bpSys&&r.bpDia&&r.date).sort((a,b)=>a.date.localeCompare(b.date));
+  if(!data.length){$('bp-overview-content').innerHTML='<div class="empty"><div class="empty-icon">❤️</div><p>No BP data for selected period</p></div>';return;}
+  const sv=data.map(r=>+r.bpSys),dv=data.map(r=>+r.bpDia);
+  const cc={}; data.map(r=>bpCat(+r.bpSys,+r.bpDia)[0]).forEach(c=>cc[c]=(cc[c]||0)+1);
+  $('bp-overview-content').innerHTML=`
+    <div class="cards-row">
+      <div class="stat-card accent"><div class="label">BP Readings</div><div class="value">${data.length}</div></div>
+      <div class="stat-card warn"><div class="label">Avg BP</div><div class="value">${Math.round(arrAvg(sv))}/${Math.round(arrAvg(dv))}</div><div class="sub">mmHg</div></div>
+      <div class="stat-card danger"><div class="label">Max Systolic</div><div class="value">${Math.max(...sv)}</div><div class="sub">mmHg</div></div>
+      <div class="stat-card success"><div class="label">Min Systolic</div><div class="value">${Math.min(...sv)}</div><div class="sub">mmHg</div></div>
+    </div>
+    <div class="summary-block" style="margin-bottom:14px"><h3>BP Category Breakdown</h3>
+      ${['Normal','Elevated','Stage 1 High','Stage 2 High','Hypertensive Crisis'].filter(c=>cc[c]).map(c=>{
+        const[,col]=bpCat(c==='Normal'?110:c==='Elevated'?125:c==='Stage 1 High'?135:155,75);
+        return `<div class="kv-row"><span class="k">${c}</span><span class="v" style="color:${col}">${cc[c]} (${Math.round(100*cc[c]/data.length)}%)</span></div>`;
+      }).join('')}
+    </div>`;
+  renderLineChart('c-bptrend',data.map(r=>r.date),[
+    {label:'Systolic',data:sv,borderColor:'rgba(239,68,68,.8)',backgroundColor:'transparent',tension:.2,pointRadius:2},
+    {label:'Diastolic',data:dv,borderColor:'rgba(59,130,246,.8)',backgroundColor:'transparent',tension:.2,pointRadius:2}
+  ],{high:p.bpSys});
+  const histBins=(arr,min,max,n)=>{const sz=(max-min)/n,c=Array(n).fill(0);arr.forEach(v=>{const b=Math.min(n-1,Math.floor((v-min)/sz));if(b>=0)c[b]++;});return{labels:Array.from({length:n},(_,i)=>Math.round(min+i*sz)),counts:c};};
+  const{labels:sl,counts:sc}=histBins(sv,80,220,28);const{labels:dl,counts:dc}=histBins(dv,40,130,18);
+  renderBarChart('c-sysdist',sl,[{label:'Count',data:sc,backgroundColor:'rgba(239,68,68,.6)',borderRadius:2}]);
+  renderBarChart('c-diadist',dl,[{label:'Count',data:dc,backgroundColor:'rgba(59,130,246,.6)',borderRadius:2}]);
+  const ym={}; data.forEach(r=>{const y=r.date.slice(0,4);if(!ym[y])ym[y]={s:[],d:[]};ym[y].s.push(+r.bpSys);ym[y].d.push(+r.bpDia);});
+  const yrs=Object.keys(ym).sort();
+  renderBarChart('c-bpyear',yrs,[
+    {label:'Avg Systolic',data:yrs.map(y=>+arrAvg(ym[y].s).toFixed(1)),backgroundColor:'rgba(239,68,68,.7)',borderRadius:4},
+    {label:'Avg Diastolic',data:yrs.map(y=>+arrAvg(ym[y].d).toFixed(1)),backgroundColor:'rgba(59,130,246,.7)',borderRadius:4}
+  ]);
+  const pp=sv.map((s,i)=>s-dv[i]);
+  $('bp-stats-content').innerHTML=`<div class="summary-grid">
+    <div class="summary-block"><h3>Systolic</h3>
+      <div class="kv-row"><span class="k">Average</span><span class="v">${arrAvg(sv).toFixed(1)} mmHg</span></div>
+      <div class="kv-row"><span class="k">Median</span><span class="v">${arrMed(sv)} mmHg</span></div>
+      <div class="kv-row"><span class="k">Min / Max</span><span class="v">${Math.min(...sv)} / ${Math.max(...sv)} mmHg</span></div>
+      <div class="kv-row"><span class="k">% Normal (&lt;120)</span><span class="v" style="color:var(--accent2)">${Math.round(100*sv.filter(v=>v<120).length/sv.length)}%</span></div>
+      <div class="kv-row"><span class="k">% Stage 2 (≥140)</span><span class="v" style="color:var(--danger)">${Math.round(100*sv.filter(v=>v>=140).length/sv.length)}%</span></div>
+    </div>
+    <div class="summary-block"><h3>Diastolic</h3>
+      <div class="kv-row"><span class="k">Average</span><span class="v">${arrAvg(dv).toFixed(1)} mmHg</span></div>
+      <div class="kv-row"><span class="k">Min / Max</span><span class="v">${Math.min(...dv)} / ${Math.max(...dv)} mmHg</span></div>
+      <div class="kv-row"><span class="k">% Normal (&lt;80)</span><span class="v" style="color:var(--accent2)">${Math.round(100*dv.filter(v=>v<80).length/dv.length)}%</span></div>
+      <div class="kv-row"><span class="k">% High (≥90)</span><span class="v" style="color:var(--danger)">${Math.round(100*dv.filter(v=>v>=90).length/dv.length)}%</span></div>
+    </div>
+    <div class="summary-block"><h3>Pulse Pressure</h3>
+      <div class="kv-row"><span class="k">Average</span><span class="v">${arrAvg(pp).toFixed(1)} mmHg (normal 40–60)</span></div>
+      <div class="kv-row"><span class="k">% Within 40–60</span><span class="v" style="color:var(--accent2)">${Math.round(100*pp.filter(v=>v>=40&&v<=60).length/pp.length)}%</span></div>
+      <div class="kv-row"><span class="k">% Elevated (&gt;60)</span><span class="v" style="color:var(--danger)">${Math.round(100*pp.filter(v=>v>60).length/pp.length)}%</span></div>
+    </div>
+  </div>`;
+};
+
+// ── TEST RECORDS ──────────────────────────────────────────────────────────────
+const TCMAP={
+  'Lipid Profile':['Total Choles','HDL Choles','LDL Choles','VLDL Choles','Total:HDL Choles','Triglycerides'],
+  'Diabetic':['HBA1c (HPLC)','HBA1c (IFCC)','Fast Overnight','Post-prandial','Insulin'],
+  'Liver Function':['T.Protein','Albumin','Globulin','A/G Ratio','T.Bilirubin','ALP','AST (AGOT)','ALT (AGPT)','Gamma GT'],
+  'Kidney/Renal':['Urea','Urea Nitrogen','Creatinine','Calcium','Inorganic Phos','Uric Acid','eGFR'],
+  'Electrolytes':['Sodium','Potassium','Chloride','Bicarbonate','Random Blood Sugar'],
+  'Haematology':['ESR','RBC','Haemoglobin','PCV','MCV','MCH','MCHC','Platelets','WBC','RDW'],
+  'Diff. Count':['Neutrophils','Lymphocytes','Monocytes','Eosinophils','Basophils'],
+  'Urinalysis':['Urine Sp.Gravity','pH','Protein','Glucose','Ketones','Blood','Urinary Albumin','Urinary Creatinine','Albumin Creatinine ratio'],
+  'Thyroid Screen':['Free T4','Intact Para Thyroid Hormone','TSH (sensitive)'],
+  'Serology':['Rheumatoid Factor','VDRL','HIV I & II AB'],
+  'Hepatitis':['HBS ANTIGEN','HBS ANTIBODY','HAV IGG'],
+  'General':['Body Mass Index','BP','C-Reactive Protein (CRP)'],
+};
+window.renderTestSessions = function() {
+  const q=($('test-search')?.value||'').toLowerCase();
+  const sess=_data.tests.filter(s=>!q||[s.testDate,s.location,s.notes].join(' ').toLowerCase().includes(q));
+  $('test-sessions-list').innerHTML='<div style="padding:8px 12px;font-size:.7rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em">Sessions ('+sess.length+')</div>'+
+    (sess.map(s=>`<div class="session-item${_sel.test===s.id?' selected':''}" data-id="${s.id}" onclick="selectTestSession('${s.id}',this)" ondblclick="editSelectedTest()">
+      <div class="s-date">📅 ${s.testDate}</div>
+      <div class="s-loc">${s.location||'No location'}${s.notes?' — '+s.notes:''}</div>
+      <div class="s-count">${(s.results||[]).length} results</div>
+    </div>`).join('')||'<div class="empty"><div class="empty-icon">🔬</div><p>No sessions yet</p></div>');
+};
+window.selectTestSession = function(id,el) {
+  _sel.test=id;
+  document.querySelectorAll('.session-item').forEach(e=>e.classList.remove('selected'));
+  el?.classList.add('selected');
+  const sess=_data.tests.find(s=>s.id===id); if(!sess) return;
+  const res=sess.results||[];
+  if(!res.length){$('test-results-pane').innerHTML='<div class="empty"><div class="empty-icon">📋</div><p>No results for this session</p></div>';return;}
+  let html=`<div style="font-weight:700;margin-bottom:12px;font-size:.9rem">Results — ${sess.testDate}${sess.location?' @ '+sess.location:''}</div>`;
+  const cats=[...new Set(res.map(r=>r.category))];
+  for(const cat of cats){
+    html+=`<div style="font-size:.72rem;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:.05em;padding:8px 0 4px;border-top:1px solid var(--border);margin-top:4px">${cat}</div>`;
+    for(const r of res.filter(x=>x.category===cat)){
+      const fc=r.flag==='High'?'var(--danger)':r.flag==='Low'?'var(--accent)':r.flag==='Critical'?'#f43f5e':'var(--text)';
+      const badge=r.flag?` <span class="badge badge-${r.flag==='High'||r.flag==='Critical'?'high':r.flag==='Low'?'low':'norm'}">${r.flag}</span>`:'';
+      html+=`<div class="kv-row"><span class="k">${r.criterion}</span><span class="v" style="color:${fc}">${r.value||'—'} ${r.unit||''}${badge}</span></div>`;
+    }
+  }
+  $('test-results-pane').innerHTML=html;
+};
+window.openTestModal = function(id=null) {
+  _sel.test=id;
+  $('modal-test-title').textContent=id?'Edit Test Session':'Add Test Session';
+  const s=id?_data.tests.find(x=>x.id===id):null;
+  $('t-date').value=s?.testDate||new Date().toISOString().split('T')[0];
+  $('t-loc').value=s?.location||''; $('t-notes').value=s?.notes||'';
+  const ex={}; (s?.results||[]).forEach(r=>ex[r.category+'|'+r.criterion]=r);
+  let html='';
+  for(const[cat,crits] of Object.entries(TCMAP)){
+    html+=`<div style="font-size:.76rem;font-weight:700;background:var(--bg3);padding:5px 10px;border-radius:4px;margin:8px 0 6px;color:var(--accent)">${cat}</div>`;
+    html+=`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:5px;margin-bottom:4px">`;
+    for(const crit of crits){
+      const e=ex[cat+'|'+crit]||{};
+      html+=`<div style="display:flex;align-items:center;gap:5px">
+        <span style="font-size:.76rem;color:var(--text2);min-width:150px">${crit}</span>
+        <input class="cfg-input" style="width:90px" placeholder="value" data-cat="${cat}" data-crit="${crit}" data-f="val" value="${e.value||''}"/>
+        <select class="cfg-input" style="width:90px" data-cat="${cat}" data-crit="${crit}" data-f="flag">
+          <option value="">—</option><option${e.flag==='Normal'?' selected':''}>Normal</option>
+          <option${e.flag==='High'?' selected':''}>High</option><option${e.flag==='Low'?' selected':''}>Low</option>
+          <option${e.flag==='Critical'?' selected':''}>Critical</option>
+        </select></div>`;
+    }
+    html+='</div>';
+  }
+  $('test-form-fields').innerHTML=html;
+  openModal('modal-test');
+};
+window.editSelectedTest = function() { const id=_sel.test; if(!id){toast('Select a session first','error');return;} openTestModal(id); };
+window.deleteTest = async function() {
+  const id=_sel.test; if(!id){toast('Select a session first','error');return;}
+  if(!confirm('Delete this test session?')) return;
+  await dbDel('tests',id); _data.tests=_data.tests.filter(s=>s.id!==id);
+  _sel.test=null; renderTestSessions();
+  $('test-results-pane').innerHTML='<div class="empty"><div class="empty-icon">🔬</div><p>Select a session to view results</p></div>';
+  toast('Deleted','success');
+};
+window.saveTest = async function() {
+  const saveBtn = document.querySelector('#modal-test .btn-success');
+  if (saveBtn && saveBtn.disabled) return;
+  if (saveBtn) { saveBtn.disabled=true; saveBtn.textContent='⏳ Saving…'; }
+  const _reEnable = ()=>{ if(saveBtn){ saveBtn.disabled=false; saveBtn.textContent='💾 Save Session'; } };
+  try {
+  const date=$('t-date').value; if(!date){toast('Date required','error');_reEnable();return;}
+  const results=[];
+  document.querySelectorAll('#test-form-fields [data-f="val"]').forEach(inp=>{
+    const val=inp.value.trim(); if(!val) return;
+    const cat=inp.dataset.cat,crit=inp.dataset.crit;
+    const flag=document.querySelector(`#test-form-fields [data-cat="${cat}"][data-crit="${crit}"][data-f="flag"]`)?.value||'';
+    results.push({category:cat,criterion:crit,value:val,unit:'',flag});
+  });
+  const data={testDate:date,location:$('t-loc').value.trim()||null,notes:$('t-notes').value.trim()||null,results};
+  if(_sel.test){
+    await dbSet('tests',_sel.test,data);
+    const i=_data.tests.findIndex(s=>s.id===_sel.test);
+    if(i>=0)_data.tests[i]={...data,id:_sel.test};
+  } else { const id=await dbAdd('tests',data); _data.tests.unshift({...data,id}); }
+  _data.tests.sort((a,b)=>(b.testDate||'').localeCompare(a.testDate||''));
+  closeModal('modal-test'); renderTestSessions(); toast('Test session saved','success'); _sel.test=null;
+  } catch(e){ toast('Save failed: '+e.message,'error'); } finally { _reEnable(); }
+};
+window.exportTestsCSV = function() {
+  const rows=[];
+  for(const s of _data.tests) for(const r of(s.results||[])) rows.push({testDate:s.testDate,location:s.location||'',notes:s.notes||'',category:r.category,criterion:r.criterion,value:r.value||'',unit:r.unit||'',flag:r.flag||''});
+  exportCSV(rows,['testDate','location','notes','category','criterion','value','unit','flag'],'TestRecords_Export.csv');
+};
+window.importTestsCSV = function() {
+  fileInput('.csv', async text => {
+    const rows=parseCSV(text); let n=0,sk=0;
+    const exKeys=new Set(_data.tests.map(s=>(s.testDate||'')+'|'+(s.location||'')));
+    const sessMap={};
+    for(const row of rows){
+      const td=row.testDate||row.test_date||''; const loc=row.location||''; const key=td+'|'+loc;
+      if(!sessMap[key]){
+        if(exKeys.has(key)){const es=_data.tests.find(s=>s.testDate===td&&(s.location||'')==loc);sessMap[key]=es?.id;sk++;}
+        else{const id=await dbAdd('tests',{testDate:td,location:loc,notes:row.notes||null,results:[]});_data.tests.unshift({testDate:td,location:loc,notes:row.notes||null,results:[],id});sessMap[key]=id;exKeys.add(key);n++;}
+      }
+      if(sessMap[key]&&row.criterion){const s=_data.tests.find(x=>x.id===sessMap[key]);if(s){if(!s.results)s.results=[];s.results.push({category:row.category||'',criterion:row.criterion,value:row.value||'',unit:row.unit||'',flag:row.flag||''});await dbSet('tests',s.id,s);}}
+    }
+    _data.tests.sort((a,b)=>(b.testDate||'').localeCompare(a.testDate||'')); renderTestSessions(); toast(`Imported ${n} new sessions`,'success');
+  });
+};
+
+// ── WIFE UC ───────────────────────────────────────────────────────────────────
+window.renderWifeSum = function() {
+  $('wife-sum-tbody').innerHTML=_data.wifesum.map(r=>`
+    <tr data-id="${r.id}" onclick="selRow('wifesum','${r.id}',this)" ondblclick="editSelectedWifeSum()">
+      <td>${r.periodNum||''}</td><td>${r.period||''}</td><td>${r.doctor||''}</td>
+      <td>${r.clinic||''}</td><td>${r.medications||''}</td><td>${r.steroids||''}</td><td>${r.notes||''}</td>
+    </tr>`).join('')||'<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:24px">No treatment periods</td></tr>';
+};
+window.renderWifeVisits = function() {
+  const q=($('wife-search')?.value||'').toLowerCase();
+  const vis=_data.wifev.filter(r=>!q||[r.visitDate,r.description,r.doctor,r.hospital].join(' ').toLowerCase().includes(q));
+  $('wife-vis-tbody').innerHTML=vis.map(r=>`
+    <tr data-id="${r.id}" onclick="selRow('wifev','${r.id}',this)" ondblclick="editSelectedWifeVisit()">
+      <td>${r.visitDate||''}</td><td>${r.hospital||''}</td><td>${r.description||''}</td>
+      <td>${r.doctor||''}</td><td>${r.tests||''}</td><td>${r.medications||''}</td><td>${r.remarks||''}</td>
+    </tr>`).join('')||'<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:24px">No visits recorded</td></tr>';
+};
+window.openWifeSumModal = function(id=null) {
+  _sel.wifesum=id; $('modal-wifesum-title').textContent=id?'Edit Treatment Period':'Add Treatment Period';
+  const r=id?_data.wifesum.find(x=>x.id===id):null;
+  $('ws-num').value=r?.periodNum||''; $('ws-period').value=r?.period||'';
+  $('ws-doctor').value=r?.doctor||''; $('ws-clinic').value=r?.clinic||'';
+  $('ws-meds').value=r?.medications||''; $('ws-ster').value=r?.steroids||'';
+  $('ws-notes').value=r?.notes||''; openModal('modal-wifesum');
+};
+window.editSelectedWifeSum = function() { const id=_sel.wifesum; if(!id){toast('Select a period first','error');return;} openWifeSumModal(id); };
+window.deleteWifeSum = async function() {
+  const id=_sel.wifesum; if(!id){toast('Select a period first','error');return;}
+  if(!confirm('Delete this treatment period?')) return;
+  await dbDel('wifesum',id); _data.wifesum=_data.wifesum.filter(r=>r.id!==id);
+  _sel.wifesum=null; renderWifeSum(); toast('Deleted','success');
+};
+window.saveWifeSum = async function() {
+  const saveBtn = document.querySelector('#modal-wifesum .btn-success');
+  if (saveBtn && saveBtn.disabled) return;
+  if (saveBtn) { saveBtn.disabled=true; saveBtn.textContent='⏳ Saving…'; }
+  const _reEnable = ()=>{ if(saveBtn){ saveBtn.disabled=false; saveBtn.textContent='💾 Save'; } };
+  try {
+  const data={periodNum:$('ws-num').value,period:$('ws-period').value,doctor:$('ws-doctor').value,clinic:$('ws-clinic').value,medications:$('ws-meds').value,steroids:$('ws-ster').value,notes:$('ws-notes').value};
+  if(_sel.wifesum){await dbSet('wifesum',_sel.wifesum,data);const i=_data.wifesum.findIndex(r=>r.id===_sel.wifesum);if(i>=0)_data.wifesum[i]={...data,id:_sel.wifesum};}
+  else{const id=await dbAdd('wifesum',data);_data.wifesum.push({...data,id});}
+  _data.wifesum.sort((a,b)=>(+a.periodNum||0)-(+b.periodNum||0));
+  closeModal('modal-wifesum'); renderWifeSum(); toast('Saved','success'); _sel.wifesum=null;
+  } catch(e){ toast('Save failed: '+e.message,'error'); } finally { _reEnable(); }
+};
+window.openWifeVisitModal = function(id=null) {
+  _sel.wifev=id; $('modal-wifevis-title').textContent=id?'Edit Visit Record':'Add Visit Record';
+  const r=id?_data.wifev.find(x=>x.id===id):null;
+  $('wv-date').value=r?.visitDate||new Date().toISOString().split('T')[0];
+  $('wv-hosp').value=r?.hospital||''; $('wv-desc').value=r?.description||'';
+  $('wv-doc').value=r?.doctor||''; $('wv-tests').value=r?.tests||'';
+  $('wv-meds').value=r?.medications||''; $('wv-rem').value=r?.remarks||'';
+  openModal('modal-wifevis');
+};
+window.editSelectedWifeVisit = function() { const id=_sel.wifev; if(!id){toast('Select a visit first','error');return;} openWifeVisitModal(id); };
+window.deleteWifeVisit = async function() {
+  const id=_sel.wifev; if(!id){toast('Select a visit first','error');return;}
+  if(!confirm('Delete this visit?')) return;
+  await dbDel('wifev',id); _data.wifev=_data.wifev.filter(r=>r.id!==id);
+  _sel.wifev=null; renderWifeVisits(); toast('Deleted','success');
+};
+window.saveWifeVisit = async function() {
+  const saveBtn = document.querySelector('#modal-wifevis .btn-success');
+  if (saveBtn && saveBtn.disabled) return;
+  if (saveBtn) { saveBtn.disabled=true; saveBtn.textContent='⏳ Saving…'; }
+  const _reEnable = ()=>{ if(saveBtn){ saveBtn.disabled=false; saveBtn.textContent='💾 Save'; } };
+  try {
+  const date=$('wv-date').value; if(!date){toast('Date required','error');_reEnable();return;}
+  const data={visitDate:date,hospital:$('wv-hosp').value.trim()||null,description:$('wv-desc').value.trim()||null,doctor:$('wv-doc').value.trim()||null,tests:$('wv-tests').value.trim()||null,medications:$('wv-meds').value.trim()||null,remarks:$('wv-rem').value.trim()||null};
+  if(_sel.wifev){await dbSet('wifev',_sel.wifev,data);const i=_data.wifev.findIndex(r=>r.id===_sel.wifev);if(i>=0)_data.wifev[i]={...data,id:_sel.wifev};}
+  else{const id=await dbAdd('wifev',data);_data.wifev.unshift({...data,id});}
+  _data.wifev.sort((a,b)=>(b.visitDate||'').localeCompare(a.visitDate||''));
+  closeModal('modal-wifevis'); renderWifeVisits(); toast('Saved','success'); _sel.wifev=null;
+  } catch(e){ toast('Save failed: '+e.message,'error'); } finally { _reEnable(); }
+};
+window.exportWifeCSV = function() { exportCSV(_data.wifev,['visitDate','hospital','description','doctor','tests','medications','remarks'],'WifeVisits_Export.csv'); };
+window.importWifeCSV = function() {
+  fileInput('.csv', async text => {
+    const rows=parseCSV(text); let n=0,sk=0;
+    const ex=new Set(_data.wifev.map(r=>(r.visitDate||'')+'|'+(r.hospital||'')+'|'+(r.description||'')));
+    for(const row of rows){
+      const vd=row.visitDate||row.visit_date||''; const key=vd+'|'+(row.hospital||'')+'|'+(row.description||'');
+      if(ex.has(key)){sk++;continue;}
+      const d={visitDate:vd,hospital:row.hospital||null,description:row.description||null,doctor:row.doctor||null,tests:row.tests||null,medications:row.medications||null,remarks:row.remarks||null};
+      const id=await dbAdd('wifev',d); _data.wifev.unshift({...d,id}); ex.add(key); n++;
+    }
+    _data.wifev.sort((a,b)=>(b.visitDate||'').localeCompare(a.visitDate||''));
+    renderWifeVisits(); toast(`Imported ${n}, skipped ${sk}`,'success');
+  });
+};
+
+// ── EXPORT ALL TO EXCEL ───────────────────────────────────────────────────────
+window.exportAllExcel = function() {
+  const st = $('excel-status');
+  st.style.color = 'var(--text2)'; st.textContent = '⏳ Generating Excel file…';
+  try {
+    const wb = XLSX.utils.book_new();
+
+    // Sheet 1: Readings
+    const rCols = ['date','dayOfWeek','weight','bpSys','bpDia','pulse',
+                   'glucoseMgdl','glucoseMmol','mealType','timeOfReading',
+                   'readingTime','dinnerMeal','medHypert','medDiab',
+                   'stressSign','exercise','remarks'];
+    const rHdr  = ['Date','Day','Weight(kg)','BP Systolic','BP Diastolic','Pulse',
+                   'Glucose mg/dL','Glucose mmol/L','Meal Type','Time of Reading',
+                   'Reading Time','Meal Description','Meds-Hypertension','Meds-Diabetes',
+                   'Stress Signs','Exercise','Remarks'];
+    const rRows = [rHdr, ..._data.readings.map(r => rCols.map(c => r[c] !== null && r[c] !== undefined ? r[c] : ''))];
+    const wsR   = XLSX.utils.aoa_to_sheet(rRows);
+    wsR['!cols'] = [12,6,9,10,10,7,12,12,12,14,10,30,25,25,15,15,20].map(w => ({wch:w}));
+    XLSX.utils.book_append_sheet(wb, wsR, 'Readings');
+
+    // Sheet 2: Test Records
+    const tHdr  = ['Test Date','Location','Notes','Category','Criterion','Value','Unit','Flag'];
+    const tRows = [tHdr];
+    for (const s of _data.tests) {
+      for (const r of (s.results || [])) {
+        tRows.push([s.testDate||'', s.location||'', s.notes||'',
+                    r.category||'', r.criterion||'', r.value||'', r.unit||'', r.flag||'']);
+      }
+    }
+    const wsT = XLSX.utils.aoa_to_sheet(tRows);
+    wsT['!cols'] = [12,20,20,18,28,12,8,10].map(w => ({wch:w}));
+    XLSX.utils.book_append_sheet(wb, wsT, 'Test Records');
+
+    // Sheet 3: Wife Treatment Summary
+    const wstHdr  = ['Period #','Period','Doctor','Clinic','Medications','Steroids','Notes'];
+    const wstRows = [wstHdr, ..._data.wifesum.map(r =>
+      [r.periodNum||'', r.period||'', r.doctor||'', r.clinic||'',
+       r.medications||'', r.steroids||'', r.notes||''])];
+    const wsWS = XLSX.utils.aoa_to_sheet(wstRows);
+    wsWS['!cols'] = [8,22,18,22,35,12,25].map(w => ({wch:w}));
+    XLSX.utils.book_append_sheet(wb, wsWS, 'Wife Treatment Summary');
+
+    // Sheet 4: Wife Visit Records
+    const wvHdr  = ['Visit Date','Hospital/Clinic','Description','Doctor',
+                    'Tests Conducted','Medications','Remarks'];
+    const wvRows = [wvHdr, ..._data.wifev.map(r =>
+      [r.visitDate||'', r.hospital||'', r.description||'', r.doctor||'',
+       r.tests||'', r.medications||'', r.remarks||''])];
+    const wsWV = XLSX.utils.aoa_to_sheet(wvRows);
+    wsWV['!cols'] = [12,22,22,18,30,30,30].map(w => ({wch:w}));
+    XLSX.utils.book_append_sheet(wb, wsWV, 'Wife Visit Records');
+
+    const date = new Date().toISOString().slice(0,10);
+    XLSX.writeFile(wb, 'DiabeticsExport_All_' + date + '.xlsx');
+    st.style.color = 'var(--accent2)';
+    st.textContent = '✅ Exported — ' + _data.readings.length + ' readings, ' +
+      _data.tests.length + ' test sessions, ' + _data.wifesum.length +
+      ' treatment periods, ' + _data.wifev.length + ' wife visits.';
+  } catch(e) {
+    st.style.color = 'var(--danger)';
+    st.textContent = '❌ Export failed: ' + e.message;
+    console.error(e);
+  }
+};
+
+// PIN system replaced by security module below
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SECURITY MODULE — PIN-BASED AUTH WITH SHA-256, BRUTE-FORCE LOCK, SESSION GUARD
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// ── CONSTANTS ─────────────────────────────────────────────────────────────────
+// Default PIN stored obfuscated — base64 of '1234' SHA-256 placeholder
+// Actual value is set by user on first Change PIN; this just ensures no plaintext
+const _SEC = {
+  PIN_HASH_KEY:  'sec_pin_h',      // localStorage key for SHA-256 pin hash
+  SESSION_KEY:   'sec_sess',       // sessionStorage key for auth session token
+  LOCK_KEY:      'sec_lock',       // localStorage key for lockout state
+  ATTEMPTS_KEY:  'sec_attempts',   // localStorage key for attempt counter
+  MAX_ATTEMPTS:  5,
+  LOCK_SECONDS:  60,
+  SESSION_TTL:   0,  // No session caching — PIN required every action
+};
+
+// ── SHA-256 HASH (Web Crypto API — never plaintext) ───────────────────────────
+async function sha256(str) {
+  const buf = await crypto.subtle.digest(
+    'SHA-256', new TextEncoder().encode(str)
+  );
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+
+// ── SESSION TOKEN ─────────────────────────────────────────────────────────────
+function _genToken() {
+  const arr = new Uint8Array(32);
+  crypto.getRandomValues(arr);
+  return Array.from(arr).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+function _setSession() {
+  const token = _genToken();
+  const expires = Date.now() + _SEC.SESSION_TTL;
+  sessionStorage.setItem(_SEC.SESSION_KEY, JSON.stringify({ token, expires }));
+  return token;
+}
+function _isSessionValid() {
+  return false; // Perpetual PIN — every sensitive action requires PIN
+}
+function _clearSession() {
+  sessionStorage.removeItem(_SEC.SESSION_KEY);
+}
+function _touchSession() { /* no-op — perpetual PIN mode */ }
+
+// ── BRUTE-FORCE LOCK ──────────────────────────────────────────────────────────
+function _isLocked() {
+  try {
+    const lock = JSON.parse(localStorage.getItem(_SEC.LOCK_KEY));
+    if (!lock) return false;
+    if (Date.now() < lock.until) return { until: lock.until };
+    localStorage.removeItem(_SEC.LOCK_KEY);
+    localStorage.setItem(_SEC.ATTEMPTS_KEY, '0');
+    return false;
+  } catch { return false; }
+}
+function _recordFailedAttempt() {
+  const attempts = parseInt(localStorage.getItem(_SEC.ATTEMPTS_KEY)||'0') + 1;
+  localStorage.setItem(_SEC.ATTEMPTS_KEY, String(attempts));
+  if (attempts >= _SEC.MAX_ATTEMPTS) {
+    const until = Date.now() + _SEC.LOCK_SECONDS * 1000;
+    localStorage.setItem(_SEC.LOCK_KEY, JSON.stringify({ until }));
+    localStorage.setItem(_SEC.ATTEMPTS_KEY, '0');
+    return { locked: true, until };
+  }
+  return { locked: false, remaining: _SEC.MAX_ATTEMPTS - attempts };
+}
+function _clearAttempts() {
+  localStorage.removeItem(_SEC.ATTEMPTS_KEY);
+  localStorage.removeItem(_SEC.LOCK_KEY);
+}
+
+// ── PIN STORAGE (SHA-256, auto-migrate legacy simple hash) ────────────────────
+async function _getStoredPinHash() {
+  return localStorage.getItem(_SEC.PIN_HASH_KEY) || null;
+}
+async function _setPinHash(pin) {
+  const hash = await sha256(pin + '_diabetic_salt');
+  localStorage.setItem(_SEC.PIN_HASH_KEY, hash);
+  // Remove old hash key if present
+  localStorage.removeItem('appPin');
+  return hash;
+}
+async function _verifyPin(pin) {
+  // Check new SHA-256 hash first
+  const stored = await _getStoredPinHash();
+  if (stored) {
+    const hash = await sha256(pin + '_diabetic_salt');
+    return hash === stored;
+  }
+  // Legacy fallback — migrate old simple hash to SHA-256
+  const legacy = lsGet('appPin');
+  if (legacy) {
+    // Old hash function: djb2
+    let h = 5381;
+    for (let i=0; i<pin.length; i++) h = ((h<<5)+h)^pin.charCodeAt(i);
+    if (String(h>>>0) === legacy) {
+      await _setPinHash(pin); // upgrade to SHA-256
+      localStorage.removeItem('appPin');
+      return true;
+    }
+  }
+  return false;
+}
+function _hasPinSet() {
+  return !!localStorage.getItem(_SEC.PIN_HASH_KEY) || !!lsGet('appPin');
+}
+
+// ── INTERNAL AUTH GUARD (blocks console bypass) ───────────────────────────────
+// Every sensitive function calls this — even if called directly from console
+function _requireAuth(actionName, callback) {
+  // Session always invalid in perpetual mode — always prompt
+  _showPinPrompt(actionName, callback);
+  return false; // never execute inline — always via callback after PIN
+}
+
+// ── PIN PROMPT MODAL ──────────────────────────────────────────────────────────
+let _pendingAction = null;
+let _lockTimer     = null;
+
+window._showPinPrompt = function(actionName, callback) {
+  _pendingAction = callback || null;
+
+  // Check lock first
+  const lock = _isLocked();
+  if (lock) {
+    _showLockMessage(lock.until);
+    return;
+  }
+
+  $('pin-prompt-action').textContent = actionName || 'this action';
+  $('pin-prompt-input').value = '';
+  $('pin-prompt-error').textContent = '';
+  $('pin-prompt-error').style.color = 'var(--danger)';
+  $('pin-prompt-attempts').textContent = '';
+  openModal('modal-pin-prompt');
+  setTimeout(() => $('pin-prompt-input').focus(), 120);
+
+  // Start lock countdown display if near limit
+  const att = parseInt(localStorage.getItem(_SEC.ATTEMPTS_KEY)||'0');
+  if (att > 0) {
+    $('pin-prompt-attempts').textContent =
+      `${_SEC.MAX_ATTEMPTS - att} attempt${_SEC.MAX_ATTEMPTS-att===1?'':'s'} remaining before lockout`;
+    $('pin-prompt-attempts').style.color = 'var(--warn)';
+  }
+};
+
+function _showLockMessage(until) {
+  const remaining = Math.ceil((until - Date.now()) / 1000);
+  $('pin-prompt-action').textContent = 'locked';
+  $('pin-prompt-input').value = '';
+  $('pin-prompt-input').disabled = true;
+  $('pin-prompt-error').style.color = 'var(--danger)';
+  $('pin-prompt-error').textContent =
+    `Too many failed attempts. Locked for ${remaining} seconds.`;
+  $('pin-prompt-attempts').textContent = '';
+  openModal('modal-pin-prompt');
+
+  // Live countdown
+  if (_lockTimer) clearInterval(_lockTimer);
+  _lockTimer = setInterval(() => {
+    const rem = Math.ceil((until - Date.now()) / 1000);
+    if (rem <= 0) {
+      clearInterval(_lockTimer);
+      $('pin-prompt-input').disabled = false;
+      $('pin-prompt-error').textContent = 'You may try again.';
+      $('pin-prompt-error').style.color = 'var(--accent2)';
+    } else {
+      $('pin-prompt-error').textContent =
+        `Too many failed attempts. Locked for ${rem} second${rem===1?'':'s'}.`;
+    }
+  }, 1000);
+}
+
+window.submitPinPrompt = async function() {
+  const pin = $('pin-prompt-input').value.trim();
+  const err = $('pin-prompt-error');
+  const att = $('pin-prompt-attempts');
+
+  if (!pin) { err.textContent = 'Please enter your PIN'; return; }
+
+  // Check lock
+  const lock = _isLocked();
+  if (lock) { _showLockMessage(lock.until); return; }
+
+  // If no PIN set yet — remind user to set one, allow through once
+  if (!_hasPinSet()) {
+    _clearAttempts();
+    closeModal('modal-pin-prompt');
+    toast('No PIN set — please set one in ⚙️ Settings → Change Admin PIN', 'info');
+    if (_pendingAction) {
+      const action = _pendingAction;
+      _pendingAction = null;
+      action();
+    }
+    return;
+  }
+
+  const ok = await _verifyPin(pin);
+  if (ok) {
+    _clearAttempts();
+    err.textContent = ''; att.textContent = '';
+    closeModal('modal-pin-prompt');
+    $('pin-prompt-input').value = '';
+    if (_pendingAction) {
+      const action = _pendingAction;
+      _pendingAction = null;
+      action(); // execute guarded action after PIN verified
+    }
+  } else {
+    $('pin-prompt-input').value = '';
+    const result = _recordFailedAttempt();
+    if (result.locked) {
+      _showLockMessage(Date.now() + _SEC.LOCK_SECONDS * 1000);
+    } else {
+      err.textContent = '❌ Incorrect PIN';
+      att.textContent = `${result.remaining} attempt${result.remaining===1?'':'s'} remaining before ${_SEC.LOCK_SECONDS}s lockout`;
+      att.style.color = result.remaining <= 2 ? 'var(--danger)' : 'var(--warn)';
+      $('pin-prompt-input').focus();
+    }
+  }
+};
+
+// Allow Enter key in PIN prompt
+document.addEventListener('DOMContentLoaded', () => {
+  const inp = $('pin-prompt-input');
+  if (inp) inp.addEventListener('keydown', e => { if(e.key==='Enter') submitPinPrompt(); });
+});
+
+// ── GUARDED FUNCTION WRAPPER ─────────────────────────────────────────────────
+// Wraps any function to require PIN auth before executing
+function _guarded(actionLabel, fn) {
+  return function(...args) {
+    if (_requireAuth(actionLabel)) {
+      fn.apply(this, args);
+    }
+  };
+}
+function _guardedAsync(actionLabel, fn) {
+  return function(...args) {
+    // Perpetual PIN — always prompt, never skip
+    const ctx = this;
+    _showPinPrompt(actionLabel, () => fn.apply(ctx, args));
+  };
+}
+
+// ── CHANGE PIN (upgraded to SHA-256) ─────────────────────────────────────────
+window.openChangePinModal = function() {
+  $('pin-current').value = '';
+  $('pin-new').value     = '';
+  $('pin-confirm').value = '';
+  const msg = $('pin-change-msg');
+  msg.textContent = ''; msg.style.color = 'var(--text2)';
+  openModal('modal-changepin');
+  setTimeout(() => $('pin-current').focus(), 120);
+};
+
+window.changePin = async function() {
+  const cur    = $('pin-current').value.trim();
+  const p1     = $('pin-new').value.trim();
+  const p2     = $('pin-confirm').value.trim();
+  const msg    = $('pin-change-msg');
+
+  // Validate current PIN (only if one set)
+  if (_hasPinSet()) {
+    const lock = _isLocked();
+    if (lock) {
+      msg.style.color = 'var(--danger)';
+      msg.textContent = `Locked — wait ${Math.ceil((lock.until-Date.now())/1000)}s`;
+      return;
+    }
+    const ok = await _verifyPin(cur);
+    if (!ok) {
+      const result = _recordFailedAttempt();
+      msg.style.color = 'var(--danger)';
+      if (result.locked) {
+        msg.textContent = `Too many attempts — locked for ${_SEC.LOCK_SECONDS} seconds`;
+      } else {
+        msg.textContent = `❌ Current PIN incorrect (${result.remaining} attempt${result.remaining===1?'':'s'} left)`;
+      }
+      $('pin-current').value = ''; $('pin-current').focus();
+      return;
+    }
+  }
+  if (p1.length < 4) {
+    msg.style.color='var(--danger)'; msg.textContent='❌ New PIN must be at least 4 digits';
+    $('pin-new').focus(); return;
+  }
+  if (!/^\d+$/.test(p1)) {
+    msg.style.color='var(--danger)'; msg.textContent='❌ Digits only (0–9)';
+    $('pin-new').value=''; $('pin-new').focus(); return;
+  }
+  if (p1 !== p2) {
+    msg.style.color='var(--danger)'; msg.textContent='❌ PINs do not match';
+    $('pin-confirm').value=''; $('pin-confirm').focus(); return;
+  }
+  await _setPinHash(p1);
+  _clearAttempts();
+  msg.style.color='var(--accent2)'; msg.textContent='✅ PIN changed successfully!';
+  toast('Admin PIN updated — SHA-256 secured', 'success');
+  setTimeout(()=>closeModal('modal-changepin'), 1200);
+};
+
+// ── APPLY GUARDS TO ALL SENSITIVE FUNCTIONS ───────────────────────────────────
+// Called once after all window.* functions are defined
+function _applySecurityGuards() {
+  // Add buttons (openReadingModal, openTestModal, openWifeSumModal, openWifeVisitModal)
+  // are intentionally NOT guarded — free to use without PIN.
+  // Everything else requires PIN every single time (no session caching).
+  const WRITE_ACTIONS = [
+    // ── Readings ──────────────────────────────────────────────────────────
+    ['editSelectedReading',    'Edit Reading'],
+    ['deleteReading',          'Delete Reading'],
+    ['saveReading',            'Save Reading'],
+    // ── Test Records ──────────────────────────────────────────────────────
+    ['editSelectedTest',       'Edit Test Session'],
+    ['deleteTest',             'Delete Test Session'],
+    ['saveTest',               'Save Test Session'],
+    // ── Wife Treatment Summary ─────────────────────────────────────────────
+    ['editSelectedWifeSum',    'Edit Treatment Period'],
+    ['deleteWifeSum',          'Delete Treatment Period'],
+    ['saveWifeSum',            'Save Treatment Period'],
+    // ── Wife Visits ────────────────────────────────────────────────────────
+    ['editSelectedWifeVisit',  'Edit Wife Visit'],
+    ['deleteWifeVisit',        'Delete Wife Visit'],
+    ['saveWifeVisit',          'Save Wife Visit'],
+    // ── Export / Import ────────────────────────────────────────────────────
+    ['exportReadingsCSV',      'Export Readings CSV'],
+    ['importReadingsCSV',      'Import Readings CSV'],
+    ['exportTestsCSV',         'Export Test Records CSV'],
+    ['importTestsCSV',         'Import Test Records CSV'],
+    ['exportWifeCSV',          'Export Wife Records CSV'],
+    ['importWifeCSV',          'Import Wife Records CSV'],
+    ['exportAllExcel',         'Export All to Excel'],
+    // ── Settings ───────────────────────────────────────────────────────────
+    ['backupAllData',          'Backup Database'],
+    ['restoreAllData',         'Restore Database'],
+    ['saveSettingsFile',       'Save Settings File'],
+    ['restoreSettingsFile',    'Restore Settings File'],
+    // saveFirebaseConfig removed — config is hardcoded, no UI button
+    ['savePrefs',              'Save Preferences'],
+    ['openChangePinModal',     'Change Admin PIN'],
+  ];
+
+  for (const [fnName, label] of WRITE_ACTIONS) {
+    if (typeof window[fnName] === 'function') {
+      const original = window[fnName];
+      window[fnName] = _guardedAsync(label, original);
+    }
+  }
+  console.log(`[Security] ${WRITE_ACTIONS.length} functions guarded`);
+}
+
+// Auto-init session from sessionStorage (page refresh stay-logged-in)
+// and apply guards after all functions defined
+window.addEventListener('load', () => {
+  // Apply guards after init() has defined all window.* functions
+  setTimeout(_applySecurityGuards, 500);
+
+  // Show session status in settings
+  const infoEl = $('info-session');
+  if (infoEl) {
+    infoEl.textContent = '🔒 Perpetual PIN — required for every action';
+    infoEl.style.color = 'var(--accent2)';
+  }
+});
+
+</script>
+
+</body>
+</html>
