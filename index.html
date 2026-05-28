@@ -1148,6 +1148,8 @@ window.openReadingModal = function(id=null) {
   document.querySelectorAll('#r-medh-group input').forEach(cb => cb.checked = mh.includes(cb.value));
   document.querySelectorAll('#r-medd-group input').forEach(cb => cb.checked = md.includes(cb.value));
   if (r?.glucoseMgdl) calcMmol();
+  const rSaveBtn = document.querySelector('#modal-reading .btn-success');
+  if (rSaveBtn) rSaveBtn.setAttribute('onclick', id ? 'saveReadingEdit()' : 'saveReading()');
   openModal('modal-reading');
 };
 window.editSelectedReading = function() {
@@ -1559,6 +1561,8 @@ window.openTestModal = function(id=null) {
     html+='</div>';
   }
   $('test-form-fields').innerHTML=html;
+  const tSaveBtn = document.querySelector('#modal-test .btn-success');
+  if (tSaveBtn) tSaveBtn.setAttribute('onclick', id ? 'saveTestEdit()' : 'saveTest()');
   openModal('modal-test');
 };
 window.editSelectedTest = function() { const id=_sel.test; if(!id){toast('Select a session first','error');return;} openTestModal(id); };
@@ -1639,7 +1643,10 @@ window.openWifeSumModal = function(id=null) {
   $('ws-num').value=r?.periodNum||''; $('ws-period').value=r?.period||'';
   $('ws-doctor').value=r?.doctor||''; $('ws-clinic').value=r?.clinic||'';
   $('ws-meds').value=r?.medications||''; $('ws-ster').value=r?.steroids||'';
-  $('ws-notes').value=r?.notes||''; openModal('modal-wifesum');
+  $('ws-notes').value=r?.notes||'';
+  const wsSaveBtn = document.querySelector('#modal-wifesum .btn-success');
+  if (wsSaveBtn) wsSaveBtn.setAttribute('onclick', id ? 'saveWifeSumEdit()' : 'saveWifeSum()');
+  openModal('modal-wifesum');
 };
 window.editSelectedWifeSum = function() { const id=_sel.wifesum; if(!id){toast('Select a period first','error');return;} openWifeSumModal(id); };
 window.deleteWifeSum = async function() {
@@ -1668,6 +1675,8 @@ window.openWifeVisitModal = function(id=null) {
   $('wv-hosp').value=r?.hospital||''; $('wv-desc').value=r?.description||'';
   $('wv-doc').value=r?.doctor||''; $('wv-tests').value=r?.tests||'';
   $('wv-meds').value=r?.medications||''; $('wv-rem').value=r?.remarks||'';
+  const wvSaveBtn = document.querySelector('#modal-wifevis .btn-success');
+  if (wvSaveBtn) wvSaveBtn.setAttribute('onclick', id ? 'saveWifeVisitEdit()' : 'saveWifeVisit()');
   openModal('modal-wifevis');
 };
 window.editSelectedWifeVisit = function() { const id=_sel.wifev; if(!id){toast('Select a visit first','error');return;} openWifeVisitModal(id); };
@@ -2087,19 +2096,19 @@ function _applySecurityGuards() {
     // ── Readings ──────────────────────────────────────────────────────────
     ['editSelectedReading',    'Edit Reading'],
     ['deleteReading',          'Delete Reading'],
-    ['saveReading',            'Save Reading'],
+    // saveReading intentionally excluded — unguarded for Add; saveReadingEdit is guarded for Edit
     // ── Test Records ──────────────────────────────────────────────────────
     ['editSelectedTest',       'Edit Test Session'],
     ['deleteTest',             'Delete Test Session'],
-    ['saveTest',               'Save Test Session'],
+    // saveTest intentionally excluded — unguarded for Add; saveTestEdit is guarded for Edit
     // ── Wife Treatment Summary ─────────────────────────────────────────────
     ['editSelectedWifeSum',    'Edit Treatment Period'],
     ['deleteWifeSum',          'Delete Treatment Period'],
-    ['saveWifeSum',            'Save Treatment Period'],
+    // saveWifeSum intentionally excluded — unguarded for Add; saveWifeSumEdit is guarded for Edit
     // ── Wife Visits ────────────────────────────────────────────────────────
     ['editSelectedWifeVisit',  'Edit Wife Visit'],
     ['deleteWifeVisit',        'Delete Wife Visit'],
-    ['saveWifeVisit',          'Save Wife Visit'],
+    // saveWifeVisit intentionally excluded — unguarded for Add; saveWifeVisitEdit is guarded for Edit
     // ── Export / Import ────────────────────────────────────────────────────
     ['exportReadingsCSV',      'Export Readings CSV'],
     ['importReadingsCSV',      'Import Readings CSV'],
@@ -2125,6 +2134,13 @@ function _applySecurityGuards() {
     }
   }
   console.log(`[Security] ${WRITE_ACTIONS.length} functions guarded`);
+
+  // Guarded Edit-only save variants — called when modal is in edit mode.
+  // The base save functions remain unguarded so Add operations need no PIN.
+  window.saveReadingEdit   = _guardedAsync('Edit Reading',          window.saveReading);
+  window.saveTestEdit      = _guardedAsync('Edit Test Session',     window.saveTest);
+  window.saveWifeSumEdit   = _guardedAsync('Edit Treatment Period', window.saveWifeSum);
+  window.saveWifeVisitEdit = _guardedAsync('Edit Wife Visit',       window.saveWifeVisit);
 }
 
 window.addEventListener('load', () => {
